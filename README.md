@@ -3,6 +3,8 @@ Test
 Authors:
 Rodny Perez
 
-Toy Simulator 2014
+#Toy Simulator 2014
 
 This projects aims to develop a simulator for wireless sensors.
+
+We will something else later
