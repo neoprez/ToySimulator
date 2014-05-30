@@ -8,6 +8,7 @@ random_generator = random.Random(1)
 #error parameters
 probability_of_erroneous_reading = 0.05
 erroneous_reading_standard_deviation = 20
+number_of_continous_erroneous_readings = 5
 
 #sensor parameters
 number_of_sensors_per_station = 5
@@ -84,14 +85,42 @@ def add_erroneous_readings_to_data(data, probability_of_erroneous_reading,
 	return [[get_value_with_probabilistics_erroneous_value(value) for value in time_series] 
 		for time_series in data]
 
+def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_reading, 
+	number_of_continous_erroneous_readings, random_generator):
+	"""
+	This function produces a continous sequence of erroneous readings. 
+	Ex: 34, 35,35,35, 32, 38 ...
+	"""
+	def is_value_with_probabilistics_continous_erroneous_value(value):
+		return random_generator.random() < probability_of_erroneous_reading
+	
+	tmplist = []
+
+	for time_series in data:
+		for index in range(len(time_series)):
+			if is_value_with_probabilistics_continous_erroneous_value(time_series[index]) == True:
+				#repeat the sequence
+				for i in range(number_of_continous_erroneous_readings):
+					if index+i < len(time_series):
+						time_series[index+i] = time_series[index]
+				index += number_of_continous_erroneous_readings
+		tmplist.append(time_series)
+	
+	return tmplist
 
 
-data = generate_error_free_data(number_of_sensors_per_station, number_of_readings, actual_temperature, 
-	sensor_standard_deviation, list_of_station_shifts, global_temperature, 
+				
+
+data = generate_error_free_data(number_of_sensors_per_station, number_of_readings, 
+	actual_temperature, sensor_standard_deviation, list_of_station_shifts, global_temperature, 
 	station_standard_deviation,random_generator)
+save_data_to_file(data, "data.csv")
+
+data_with_erroneous_continous_sequence = add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_reading, 
+	number_of_continous_erroneous_readings, random_generator)
+save_data_to_file(data_with_erroneous_continous_sequence, "data_with_continous_errors.csv")
 
 data_with_erroneous_reading = add_erroneous_readings_to_data(data, probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, random_generator)
 
-save_data_to_file(data, "data.csv")
 save_data_to_file(data_with_erroneous_reading, "data_with_errors.csv")
