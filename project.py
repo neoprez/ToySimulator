@@ -91,22 +91,29 @@ def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_rea
 	This function produces a continous sequence of erroneous readings. 
 	Ex: 34, 35,35,35, 32, 38 ...
 	"""
-	def is_value_with_probabilistics_continous_erroneous_value(value):
+	def does_continous_erroneous_value_starts():
 		return random_generator.random() < probability_of_erroneous_reading
+
+	def add_index_repeat_value(time_series, start_index):
+		end_index = min(start_index+number_of_continous_erroneous_readings, 
+			len(time_series))
+		for i in range(start_index, end_index):
+			time_series[i] = time_series[start_index]
+
+		return time_series
+
 	
-	tmplist = []
+	revised_data = []
 
 	for time_series in data:
-		for index in range(len(time_series)):
-			if is_value_with_probabilistics_continous_erroneous_value(time_series[index]) == True:
+		modified_time_series = time_series[:]
+		for index in range(len(modified_time_series)):
+			if does_continous_erroneous_value_starts():
 				#repeat the sequence
-				for i in range(number_of_continous_erroneous_readings):
-					if index+i < len(time_series):
-						time_series[index+i] = time_series[index]
-				index += number_of_continous_erroneous_readings
-		tmplist.append(time_series)
+				modified_time_series = add_index_repeat_value(modified_time_series, index)
+		revised_data.append(modified_time_series)
 	
-	return tmplist
+	return revised_data
 
 
 				
