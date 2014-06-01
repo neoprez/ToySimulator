@@ -3,6 +3,8 @@ This is the project
 """
 import random
 import csv
+import station as st
+
 #random generator, uses seeds for testing purposes if you want repeatability
 random_generator = random.Random(1) 
 #error parameters
@@ -18,32 +20,6 @@ sensor_standard_deviation = 2
 station_standard_deviation = 2
 global_temperature = 20
 list_of_station_shifts = [10, -7, 2]
-
-class Sensor(object):
-	"""
-	Represents a sensor and can be polled for data
-	"""
-	def __init__(self, mean, sd, ran_gen):
-		self.mean = mean
-		self.sd = sd
-		self.ran_gen = ran_gen
-
-	def get_reading(self):
-		return self.ran_gen.normalvariate(self.mean, self.sd)
-
-class Station(object):
-	"""
-	Station that holds multiple sensors
-	"""
-	def __init__(self, mean, sd, ran_gen):
-		self.mean = mean
-		self.sd = sd
-		self.ran_gen = ran_gen
-
-	def get_sensor(self, sensor_sd):
-		sensor_mean = self.ran_gen.normalvariate(self.mean, self.sd)
-		return Sensor(sensor_mean, sensor_sd, self.ran_gen)
-
 
 
 def save_data_to_file(data, file_name):
@@ -63,7 +39,7 @@ def generate_error_free_data(number_of_sensors_per_station, number_of_readings, 
 	list_of_stations_temperatures = [global_temperature + station_shift
 	 	for station_shift in list_of_station_shifts]
 
-	list_of_stations = [Station(temperature, station_standard_deviation, random_generator) 
+	list_of_stations = [st.Station(temperature, station_standard_deviation, random_generator) 
 		for temperature in list_of_stations_temperatures]
 
 	list_of_sensors = [station.get_sensor(sensor_standard_deviation) for station in list_of_stations
