@@ -4,6 +4,7 @@ This is the project
 import random
 import csv
 import station as st
+import matplotlib.pyplot as plt
 
 #random generator, uses seeds for testing purposes if you want repeatability
 random_generator = random.Random(1) 
@@ -98,7 +99,10 @@ data = generate_error_free_data(number_of_sensors_per_station, number_of_reading
 	actual_temperature, sensor_standard_deviation, list_of_station_shifts, global_temperature, 
 	station_standard_deviation,random_generator)
 save_data_to_file(data, "data.csv")
+plt.plot(range(1,number_of_readings + 1),data[0])
+plt.show()
 
+"""
 data_with_erroneous_continous_sequence = add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, random_generator)
 save_data_to_file(data_with_erroneous_continous_sequence, "data_with_continous_errors.csv")
@@ -107,3 +111,4 @@ data_with_erroneous_reading = add_erroneous_readings_to_data(data, probability_o
 	erroneous_reading_standard_deviation, random_generator)
 
 save_data_to_file(data_with_erroneous_reading, "data_with_errors.csv")
+"""

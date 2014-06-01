@@ -14,7 +14,7 @@ We will something else later
 	* Sensor dependancy
 	* Time occilation (The mean changes over time)
 	* Days or seasons (comming soon)
-	* Sensors that varie in mean and standar deviation
+	* Sensors that varies in mean and standard deviation
 	* Sensor pattern
 	* Partition sensors by groups
 	* Multiple sensor type 
