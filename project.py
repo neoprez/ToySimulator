@@ -27,11 +27,7 @@ def save_data_to_file(data, file_name):
 		csv_writer = csv.writer(csv_file)
 		for time_series in data:
 			csv_writer.writerow(time_series)
-
-def get_time_series(sensor, number_of_readings):
-	" pull sensor for how many readings is going to do "
-	return [sensor.get_reading() for x in range(number_of_readings)]
-
+"""
 def generate_error_free_data(number_of_sensors_per_station, number_of_readings, actual_temperature, 
 	sensor_standard_deviation, list_of_station_shifts, global_temperature, 
 	station_standard_deviation,random_generator):
@@ -47,6 +43,14 @@ def generate_error_free_data(number_of_sensors_per_station, number_of_readings, 
 
 	return [get_time_series(sensor, number_of_readings) 
 		for sensor in list_of_sensors]
+"""
+def generate_error_free_data(hub, number_of_readings):
+	"Generates error free data from each station"
+	#get reading from all sensors in station
+	def get_data_from_station(stat):
+		return stat.get_reading_from_all_sensors_in_station(number_of_readings)
+
+	return [get_data_from_station(hub[stat]) for stat in hub]
 
 def add_erroneous_readings_to_data(data, probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, random_generator):
@@ -91,6 +95,7 @@ def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_rea
 	return revised_data
 
 def main():
+	"""
 	data = generate_error_free_data(number_of_sensors_per_station, number_of_readings, 
 	actual_temperature, sensor_standard_deviation, list_of_station_shifts, global_temperature, 
 	station_standard_deviation,random_generator)
@@ -98,9 +103,66 @@ def main():
 	plt.plot(data)
 	plt.grid()
 	plt.show()
+	"""
+	station_names = ["A", "B", "C"]
+	main_hub = {}
+
+	station_a = st.Station(global_temperature + list_of_station_shifts[0], 
+		station_standard_deviation, station_names[0], random_generator)
+
+	station_a.add_sensor_to_station("A", sensor_standard_deviation)
+	station_a.add_sensor_to_station("B", sensor_standard_deviation)
+	station_a.add_sensor_to_station("C", sensor_standard_deviation)
+	station_a.add_sensor_to_station("D", sensor_standard_deviation)
+	station_a.add_sensor_to_station("E", sensor_standard_deviation)
+
+	station_a.connect_sensors("E", "D")
+	station_a.connect_sensors("E", "C")
+	station_a.connect_sensors("D", "B")
+	station_a.connect_sensors("D", "C")
+	station_a.connect_sensors("B", "A")
+	station_a.connect_sensors("C", "A")
+
+	station_b = st.Station(global_temperature + list_of_station_shifts[1], 
+		station_standard_deviation, station_names[1], random_generator)
+
+	station_b.add_sensor_to_station("A", sensor_standard_deviation)
+	station_b.add_sensor_to_station("B", sensor_standard_deviation)
+	station_b.add_sensor_to_station("C", sensor_standard_deviation)
+	station_b.add_sensor_to_station("D", sensor_standard_deviation)
+	station_b.add_sensor_to_station("E", sensor_standard_deviation)
+
+	station_b.connect_sensors("E", "D")
+	station_b.connect_sensors("E", "C")
+	station_b.connect_sensors("D", "B")
+	station_b.connect_sensors("C", "B")
+	station_b.connect_sensors("C", "A")
+	station_b.connect_sensors("B", "A")
+
+	station_c = st.Station(global_temperature + list_of_station_shifts[2], 
+		station_standard_deviation, station_names[2], random_generator)
+
+	station_c.add_sensor_to_station("A", sensor_standard_deviation)
+	station_c.add_sensor_to_station("B", sensor_standard_deviation)
+	station_c.add_sensor_to_station("C", sensor_standard_deviation)
+	station_c.add_sensor_to_station("D", sensor_standard_deviation)
+	station_c.add_sensor_to_station("E", sensor_standard_deviation)
+
+	station_c.connect_sensors("E", "C")
+	station_c.connect_sensors("D", "E")
+	station_c.connect_sensors("D", "C")
+	station_c.connect_sensors("C", "B")
+	station_c.connect_sensors("C", "A")
+	station_c.connect_sensors("B", "A")
+
+	main_hub[station_names[0]] = station_a
+	main_hub[station_names[1]] = station_b
+	main_hub[station_names[2]] = station_c
+
+	data = generate_error_free_data(main_hub, number_of_readings)
+	save_data_to_file(data, "data.csv")
 
 main()
-
 
 """
 data_with_erroneous_continous_sequence = add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_reading, 

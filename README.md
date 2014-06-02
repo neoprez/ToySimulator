@@ -11,13 +11,13 @@ We will something else later
 
 ##Todo
 - Implementing features:
-	* Sensor dependancy
+	* Sensor dependancy (Done)
 	* Time occilation (The mean changes over time)
 	* Days or seasons (comming soon)
 	* Sensors that varies in mean and standard deviation
 	* Sensor pattern
-	* Partition sensors by groups
-	* Multiple sensor type 
+	* Partition sensors by groups (Done)
+	* Multiple sensor type (Done)
 	* Temperature drifts globally
 
 ##Errors and anomalies
