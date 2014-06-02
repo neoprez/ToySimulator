@@ -14,14 +14,13 @@ erroneous_reading_standard_deviation = 20
 number_of_continous_erroneous_readings = 5
 
 #sensor parameters
-number_of_sensors_per_station = 5
+number_of_sensors_per_station = 1
 number_of_readings = 10
 actual_temperature = 20
 sensor_standard_deviation = 2
 station_standard_deviation = 2
 global_temperature = 20
 list_of_station_shifts = [10, -7, 2]
-
 
 def save_data_to_file(data, file_name):
 	with open(file_name, 'wb') as csv_file:
@@ -79,7 +78,6 @@ def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_rea
 
 		return time_series
 
-	
 	revised_data = []
 
 	for time_series in data:
@@ -92,15 +90,17 @@ def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_rea
 	
 	return revised_data
 
-
-				
-
-data = generate_error_free_data(number_of_sensors_per_station, number_of_readings, 
+def main():
+	data = generate_error_free_data(number_of_sensors_per_station, number_of_readings, 
 	actual_temperature, sensor_standard_deviation, list_of_station_shifts, global_temperature, 
 	station_standard_deviation,random_generator)
-save_data_to_file(data, "data.csv")
-plt.plot(range(1,number_of_readings + 1),data[0])
-plt.show()
+	save_data_to_file(data, "data.csv")
+	plt.plot(data)
+	plt.grid()
+	plt.show()
+
+main()
+
 
 """
 data_with_erroneous_continous_sequence = add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_reading, 
