@@ -1,5 +1,6 @@
 import sensor
 import graph
+import numpy as np
 
 class Station(object):
 	"""
@@ -11,9 +12,11 @@ class Station(object):
 		self.ran_gen = ran_gen
 		self.station_name = station_name
 		self.sensors_list = graph.Graph()
+		self.number_of_sensors = 0
 
 	def make_sensor(self, sensor_id, sensor_sd, type_of_sensor="NA"):
 		sensor_mean = self.ran_gen.normalvariate(self.mean, self.sd)
+		self.number_of_sensors += 1
 		return sensor.Sensor(sensor_mean, sensor_sd, sensor_id, 
 			self.ran_gen, type_of_sensor)
 
@@ -38,7 +41,10 @@ class Station(object):
 		""" Returns the readings of alll sensors in the station """
 		def get_time_series(sens):
 			" pulls sensor for how many readings is going to do "
-			return [sens.get_reading() for _ in range(number_of_readings_per_sensor)]
+			data_from_sensor = []
+			for time in range(1, number_of_readings_per_sensor + 1):
+				data_from_sensor.append([sens.get_sensor_id(), time, sens.get_reading()])
+			return data_from_sensor
 
 		return[get_time_series(sens.getNode()) for sens in self.sensors_list]
 
@@ -50,6 +56,9 @@ class Station(object):
 
 	def get_station_name(self):
 		return self.station_name
+
+	def get_number_of_sensors(self):
+		return self.number_of_sensors
 
 	def __str__(self):
 		return "Station " + self.station_name + "\nMean: " + str(self.mean) + \

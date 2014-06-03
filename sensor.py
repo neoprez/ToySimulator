@@ -20,6 +20,9 @@ class Sensor(object):
 		"""Use it to change the status of the sensor"""
 		self.online_status = status
 
+	def get_sensor_id(self):
+		return self.sensor_id
+
 	def __str__(self):
 		return "Sensor " + self.sensor_id + ":\nType of sensor: " + \
 		str(self.type_of_sensor) + "\nMean: " + str(self.mean) + \
