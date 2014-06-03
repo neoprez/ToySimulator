@@ -21,7 +21,7 @@ actual_temperature = 20
 sensor_standard_deviation = 2
 station_standard_deviation = 2
 global_temperature = 20
-list_of_station_shifts = [10, -7, 2]
+list_of_station_shifts = [10, -7, 2, -2]
 
 def save_data_to_file(data, file_name):
 	with open(file_name, 'wb') as csv_file:
@@ -29,19 +29,18 @@ def save_data_to_file(data, file_name):
 		for time_series in data:
 			csv_writer.writerow(time_series)
 
-def generate_error_free_data(hub, number_of_readings):
-	"Generates error free data from each station"
+def generate_error_free_data(stat, number_of_readings):
+	"Generates error free data from a station"
 	#get reading from all sensors in station
-	def get_data_from_station(stat):
+	def get_data_from_station():
 		return stat.get_reading_from_all_sensors_in_station(number_of_readings)
 
 	dataset = []
 
-	for stat in hub:
-		data_from_sensors = get_data_from_station(hub[stat])
-		for sens in data_from_sensors:
-			for read in sens:
-				dataset.append(read)
+	data_from_sensors = get_data_from_station()
+	for sens in data_from_sensors:
+		for read in sens:
+			dataset.append(read)
 	return dataset
 
 def add_erroneous_readings_to_data(data, probability_of_erroneous_reading, 
@@ -86,14 +85,14 @@ def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_rea
 	
 	return revised_data
 
-def plot_station(stat, data, plt):
+def plot_station(stat, data, figure_numb, width, height, figure):
 	def create_a_list_for_each_data_point_in_station():
 		" This method returns the number of figures contained in the dataset "
 		return [[] for _ in range(stat.get_number_of_sensors())]
 
 	def sort_values_by_sensor(data_points):
 		for r in data:
-			idx = ord(r[0]) - 65 #gets the value of the sensor to be used as index
+			idx = r[0] - 1 #gets the value of the sensor to be used as index
 			data_points[idx].append([r[1], r[2]])
 		return data_points
 
@@ -115,15 +114,15 @@ def plot_station(stat, data, plt):
 	data_points = sort_values_by_sensor(list_of_data_points)
 	x_and_y_for_each_data_point = get_x_and_y_for_each_data_point(data_points)
 
-	#figure = plt.figure()
-	#axes = figure.add_subplot(3,1,(i+1)) #width x height by figure number
+	axes = figure.add_subplot(height,width, figure_numb) # height x width by figure number
 	for i in range(0, len(data_points) * 2, 2):
-		plt.plot(x_and_y_for_each_data_point[i], x_and_y_for_each_data_point[i+1])
+		axes.plot(x_and_y_for_each_data_point[i], x_and_y_for_each_data_point[i+1])
+		axes.set_title("Station " + stat.get_station_name())
 	
-	plt.grid()
+	axes.grid()
 
 def main():
-	station_names = ["A", "B", "C"] #name of the stations
+	station_names = ["A", "B", "C", "D"] #name of the stations
 	main_hub = {} #creates a dictionary to keep stations
 
 	#create an station
@@ -131,11 +130,11 @@ def main():
 		station_standard_deviation, station_names[0], random_generator)
 
 	#add multople sensors to station
-	station_a.add_sensor_to_station("A", sensor_standard_deviation)
-	station_a.add_sensor_to_station("B", sensor_standard_deviation)
-	station_a.add_sensor_to_station("C", sensor_standard_deviation)
-	station_a.add_sensor_to_station("D", sensor_standard_deviation)
-	station_a.add_sensor_to_station("E", sensor_standard_deviation)
+	station_a.add_sensor_to_station(1, sensor_standard_deviation)
+	station_a.add_sensor_to_station(2, sensor_standard_deviation)
+	station_a.add_sensor_to_station(3, sensor_standard_deviation)
+	station_a.add_sensor_to_station(4, sensor_standard_deviation)
+	station_a.add_sensor_to_station(5, sensor_standard_deviation)
 
 	#connect sensors so that they are able to send data through each other
 	#station_a.connect_sensors("E", "D")
@@ -148,43 +147,54 @@ def main():
 	station_b = st.Station(global_temperature + list_of_station_shifts[1], 
 		station_standard_deviation, station_names[1], random_generator)
 
-	station_b.add_sensor_to_station("A", sensor_standard_deviation)
-	station_b.add_sensor_to_station("B", sensor_standard_deviation)
-	station_b.add_sensor_to_station("C", sensor_standard_deviation)
-	station_b.add_sensor_to_station("D", sensor_standard_deviation)
-	station_b.add_sensor_to_station("E", sensor_standard_deviation)
-
+	station_b.add_sensor_to_station(1, sensor_standard_deviation)
+	station_b.add_sensor_to_station(2, sensor_standard_deviation)
+	station_b.add_sensor_to_station(3, sensor_standard_deviation)
+	station_b.add_sensor_to_station(4, sensor_standard_deviation)
+	station_b.add_sensor_to_station(5, sensor_standard_deviation)
+	station_b.add_sensor_to_station(6, sensor_standard_deviation)
+	station_b.add_sensor_to_station(7, sensor_standard_deviation)
+	"""
 	station_b.connect_sensors("E", "D")
 	station_b.connect_sensors("E", "C")
 	station_b.connect_sensors("D", "B")
 	station_b.connect_sensors("C", "B")
 	station_b.connect_sensors("C", "A")
 	station_b.connect_sensors("B", "A")
-
+	"""
 	station_c = st.Station(global_temperature + list_of_station_shifts[2], 
 		station_standard_deviation, station_names[2], random_generator)
 
-	station_c.add_sensor_to_station("A", sensor_standard_deviation)
-	station_c.add_sensor_to_station("B", sensor_standard_deviation)
-	station_c.add_sensor_to_station("C", sensor_standard_deviation)
-	station_c.add_sensor_to_station("D", sensor_standard_deviation)
-	station_c.add_sensor_to_station("E", sensor_standard_deviation)
-
+	station_c.add_sensor_to_station(1, sensor_standard_deviation)
+	station_c.add_sensor_to_station(2, sensor_standard_deviation)
+	station_c.add_sensor_to_station(3, sensor_standard_deviation)
+	station_c.add_sensor_to_station(4, sensor_standard_deviation)
+	station_c.add_sensor_to_station(5, sensor_standard_deviation)
+	"""
 	station_c.connect_sensors("E", "C")
 	station_c.connect_sensors("D", "E")
 	station_c.connect_sensors("D", "C")
 	station_c.connect_sensors("C", "B")
 	station_c.connect_sensors("C", "A")
 	station_c.connect_sensors("B", "A")
+	"""
+	station_d = st.Station(global_temperature + list_of_station_shifts[3], 
+		station_standard_deviation, station_names[3], random_generator)
+
+	station_d.add_sensor_to_station(1, sensor_standard_deviation)
+	station_d.add_sensor_to_station(2, sensor_standard_deviation)
+
 
 	main_hub[station_names[0]] = station_a
-	#main_hub[station_names[1]] = station_b
-	#main_hub[station_names[2]] = station_c
+	main_hub[station_names[1]] = station_b
+	main_hub[station_names[2]] = station_c
+	main_hub[station_names[3]] = station_d
 
-	data = generate_error_free_data(main_hub, number_of_readings)
-	save_data_to_file(data, "data.csv")
+	#data from one station
+	#data = generate_error_free_data(main_hub[station_names[0]], number_of_readings)
 
-	data_figures = []	#to keep the data figures in case I want to edit in the future
+	#save_data_to_file(data, "data.csv")
+
 	figure = plt.figure() #to plot each data in different figures
 
 	dataset = [["Sensor id", "Time", "Reading"]]
@@ -192,30 +202,16 @@ def main():
 
 
 	data_label = [] #to hold the labels of each sensor
-	
-	plot_station(station_a, data, plt)
+	width = 1
+	height = len(main_hub)
+	figures_in_graph_count = 1
+	figure.suptitle("Sensor networks")
+
+	for key in main_hub:
+		data = generate_error_free_data(main_hub[key], number_of_readings)
+		plot_station(main_hub[key], data, figures_in_graph_count, width, height, figure)
+		figures_in_graph_count += 1
+
 
 	plt.show()
-
-
-
-
-
-
-
-	save_data_to_file(data_figures, "d.csv")
-	#for r in range(len(data)):
-	#	for c in range(len(data[r])):
-
-	#	axes = figure.add_subplot(3,1,(i+1)) #width x height by figure number
-	#	axes.set_title("data " + str(i))
-
-	#	axes.plot(data[i])
-	#	data_figures.append(axes)
-	
-	#plt.plot(x_and_y_for_each_data_figure)
-	
-	#plt.legend()
-
-
 main()
