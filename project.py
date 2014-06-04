@@ -6,9 +6,8 @@ import csv
 import station as st
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import threading as thread
 import time as time
-
+import copy
 
 def save_data_to_file(data, file_name):
 	with open(file_name, 'wb') as csv_file:
@@ -40,8 +39,12 @@ def add_erroneous_readings_to_data(data, probability_of_erroneous_reading,
 			return get_erroneous_value(value)
 		return value
 
-	return [[get_value_with_probabilistics_erroneous_value(value) for value in time_series] 
-		for time_series in data]
+	erroneous_data = []
+	for data_point in data:
+		erroneous_value = get_value_with_probabilistics_erroneous_value(data_point[2])
+		erroneous_data.append([data_point[0], data_point[1], erroneous_value])
+	
+	return erroneous_data
 
 def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, random_generator):
@@ -52,27 +55,27 @@ def add_erroneous_continuous_sequence_to_data(data, probability_of_erroneous_rea
 	def does_continous_erroneous_value_starts():
 		return random_generator.random() < probability_of_erroneous_reading
 
-	def add_index_repeat_value(time_series, start_index):
-		end_index = min(start_index+number_of_continous_erroneous_readings, 
-			len(time_series))
-		for i in range(start_index, end_index):
-			time_series[i] = time_series[start_index]
+	def add_index_repeat_value(modified_data, row):
+		""" Inserts sequence to modified data """
+		start_row = row
+		end_row = min(start_row+number_of_continous_erroneous_readings, len(modified_data))
+		
+		data_from_actual_row = modified_data[row]
+		continous_value = data_from_actual_row[2]
 
-		return time_series
+		for r in range(start_row, end_row):
+			data_from_actual_row = modified_data[r]
+			data_from_actual_row[2] = continous_value
 
-	revised_data = []
+	modified_data = copy.deepcopy(data)
 
-	for time_series in data:
-		modified_time_series = time_series[:]
-		for index in range(len(modified_time_series)):
-			if does_continous_erroneous_value_starts():
-				#repeat the sequence
-				modified_time_series = add_index_repeat_value(modified_time_series, index)
-		revised_data.append(modified_time_series)
-	
-	return revised_data
+	for row in range(len(modified_data)):
+		if does_continous_erroneous_value_starts():
+			add_index_repeat_value(modified_data, row)
 
-def plot_station(stat, data, figure_numb, width, height, figure):
+	return modified_data
+
+def plot_station(stat, data, figure_numb, width, height, title, figure):
 	def create_a_list_for_each_data_point_in_station():
 		" This method returns the number of figures contained in the dataset "
 		return [[] for _ in range(stat.get_number_of_sensors())]
@@ -104,7 +107,9 @@ def plot_station(stat, data, figure_numb, width, height, figure):
 	axes = figure.add_subplot(height,width, figure_numb) # height x width by figure number
 	for i in range(0, len(data_points) * 2, 2):
 		axes.plot(x_and_y_for_each_data_point[i], x_and_y_for_each_data_point[i+1])
-		axes.set_title("Station " + stat.get_station_name())
+		axes.set_title(title)
+		axes.set_xlabel("Time")
+		axes.set_ylabel("Reading")
 	
 	axes.grid()
 
@@ -133,7 +138,6 @@ def read_data_over_time(main_hub, number_of_readings, oscilation_time, width, he
 			plt.clf()
 		figures_in_graph_count = 1 #initializes the number of figures so that no extra figures are added
 
-	#input("Press enter to close window")
 	return data
 
 def main():
@@ -142,7 +146,7 @@ def main():
 	#error parameters
 	probability_of_erroneous_reading = 0.05
 	erroneous_reading_standard_deviation = 20
-	number_of_continous_erroneous_readings = 5
+	number_of_continous_erroneous_readings = 10
 
 	#sensor parameters
 	number_of_sensors_per_station = 1
@@ -160,9 +164,9 @@ def main():
 	station_a = st.Station(global_temperature + list_of_station_shifts[0], 
 		station_standard_deviation, station_names[0], random_generator)
 
-	#add multople sensors to station
+	#add multiple sensors to station
 	station_a.add_sensor_to_station(1, sensor_standard_deviation)
-	station_a.add_sensor_to_station(2, sensor_standard_deviation)
+	#station_a.add_sensor_to_station(2, sensor_standard_deviation)
 	#station_a.add_sensor_to_station(3, sensor_standard_deviation)
 	#station_a.add_sensor_to_station(4, sensor_standard_deviation)
 	#station_a.add_sensor_to_station(5, sensor_standard_deviation)
@@ -222,17 +226,32 @@ def main():
 	#main_hub[station_names[3]] = station_d
 
 	#data from one station
-	#data = generate_error_free_data(main_hub[station_names[0]], number_of_readings)
+	data = generate_error_free_data(main_hub[station_names[0]], number_of_readings)
+	data_with_erroneous_readings = add_erroneous_readings_to_data(data, 
+		probability_of_erroneous_reading, erroneous_reading_standard_deviation, random_generator)
+	
+	data_with_continous_erroneous_readings = add_erroneous_continuous_sequence_to_data(data, 
+		probability_of_erroneous_reading, number_of_continous_erroneous_readings, random_generator)
 
-	dataset = [["Sensor id", "Time", "Reading"]]
+	figure = plt.figure()
+	width = 1
+	height = 3
+
+	plot_station(main_hub[station_names[0]], data, 1, width, height, "Data no errors", figure)
+	plot_station(main_hub[station_names[0]], data_with_erroneous_readings, 2, width, height, 
+		"Data with errors", figure)
+	plot_station(main_hub[station_names[0]], data_with_continous_erroneous_readings, 3, 
+		width, height, "Data with continous sequence of errors", figure)
+	plt.show()
+	dataset = ["Sensor id", "Time", "Reading"]
 
 
 
 	data_label = [] #to hold the labels of each sensor
-	width = 1
-	height = len(main_hub)
 	oscilation_time = 2 #time in seconds
-	data = read_data_over_time(main_hub, number_of_readings, oscilation_time, width, height)
-	save_data_to_file(data, "data.csv")
+
+	#data = read_data_over_time(main_hub, number_of_readings, oscilation_time, width, height)
+	#data.insert(0, dataset)
+	#save_data_to_file(data, "data.csv")
 
 main()
