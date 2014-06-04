@@ -21,11 +21,11 @@ We will something else later
 	* Temperature drifts globally
 
 ##Errors and anomalies
-- Check for abrupt changes
-- Large deviation
-- Unusually low variance
-- Deviation from neighboors
-- Drift towards a particular value (0 or something else)
+- Abrupt changes (added)
+- Large deviation 
+- Unusually low variance (change in result from predicted value)
+- Deviation from neighbors (variance in result from neigbors)
+- Drift towards a particular value (0 or something else) (change over time in unforeseen ways)
 - increasingly mean difference
 
 ##Ways of representing anomalies
