@@ -19,6 +19,10 @@ We will something else later
 	* Partition sensors by groups (Done)
 	* Multiple sensor type (Done)
 	* Temperature drifts globally
+- Adding correlations
+	* Change temperature over time (moran process)
+	* Change station to correlated sensor group
+	* Change mean in station to a periodically changin value such as sine wave.
 
 ##Errors and anomalies
 - Abrupt changes (added)
