@@ -166,7 +166,7 @@ def main():
 
 	#add multiple sensors to station
 	station_a.add_sensor_to_station(1, sensor_standard_deviation)
-	#station_a.add_sensor_to_station(2, sensor_standard_deviation)
+	station_a.add_sensor_to_station(2, sensor_standard_deviation)
 	#station_a.add_sensor_to_station(3, sensor_standard_deviation)
 	#station_a.add_sensor_to_station(4, sensor_standard_deviation)
 	#station_a.add_sensor_to_station(5, sensor_standard_deviation)
