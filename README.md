@@ -12,7 +12,7 @@ We will something else later
 ##Todo
 - Implementing features:
 	* Sensor dependancy (Done)
-	* Time occilation (The mean changes over time)
+	* Time occilation (The mean changes over time) (Done)
 	* Days or seasons (comming soon)
 	* Sensors that varies in mean and standard deviation
 	* Sensor pattern
