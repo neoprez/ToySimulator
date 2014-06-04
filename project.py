@@ -5,23 +5,10 @@ import random
 import csv
 import station as st
 import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.animation as animation
+import threading as thread
+import time as time
 
-#random generator, uses seeds for testing purposes if you want repeatability
-random_generator = random.Random(1) 
-#error parameters
-probability_of_erroneous_reading = 0.05
-erroneous_reading_standard_deviation = 20
-number_of_continous_erroneous_readings = 5
-
-#sensor parameters
-number_of_sensors_per_station = 1
-number_of_readings = 10
-actual_temperature = 20
-sensor_standard_deviation = 2
-station_standard_deviation = 2
-global_temperature = 20
-list_of_station_shifts = [10, -7, 2, -2]
 
 def save_data_to_file(data, file_name):
 	with open(file_name, 'wb') as csv_file:
@@ -121,7 +108,51 @@ def plot_station(stat, data, figure_numb, width, height, figure):
 	
 	axes.grid()
 
+def read_data_over_time(main_hub, number_of_readings, oscilation_time, width, height):
+	"""
+	This function shows a plot of every station reading over time.
+	Oscilation time in seconds.
+	"""
+	plt.ion() #activates interactive mode, so that another line can be run after the plot is shown
+	figures_in_graph_count = 0
+	figure = plt.figure()
+
+	current_number_of_readings = 0
+	while current_number_of_readings < number_of_readings:
+		current_number_of_readings+= 1
+		for key in main_hub:
+			"Gets the data according to the current number of readings"
+			data = generate_error_free_data(main_hub[key], current_number_of_readings)
+			plot_station(main_hub[key], data, figures_in_graph_count, width, height, figure)
+			figures_in_graph_count += 1 #creates a figure for every station
+		
+		plt.draw()
+		plt.show()
+		time.sleep(oscilation_time)
+		if current_number_of_readings < number_of_readings:
+			plt.clf()
+		figures_in_graph_count = 1 #initializes the number of figures so that no extra figures are added
+
+	#input("Press enter to close window")
+	return data
+
 def main():
+	#random generator, uses seeds for testing purposes if you want repeatability
+	random_generator = random.Random(1) 
+	#error parameters
+	probability_of_erroneous_reading = 0.05
+	erroneous_reading_standard_deviation = 20
+	number_of_continous_erroneous_readings = 5
+
+	#sensor parameters
+	number_of_sensors_per_station = 1
+	number_of_readings = 10
+	actual_temperature = 20
+	sensor_standard_deviation = 2
+	station_standard_deviation = 2
+	global_temperature = 20
+	list_of_station_shifts = [10, -7, 2, -2]
+
 	station_names = ["A", "B", "C", "D"] #name of the stations
 	main_hub = {} #creates a dictionary to keep stations
 
@@ -132,9 +163,9 @@ def main():
 	#add multople sensors to station
 	station_a.add_sensor_to_station(1, sensor_standard_deviation)
 	station_a.add_sensor_to_station(2, sensor_standard_deviation)
-	station_a.add_sensor_to_station(3, sensor_standard_deviation)
-	station_a.add_sensor_to_station(4, sensor_standard_deviation)
-	station_a.add_sensor_to_station(5, sensor_standard_deviation)
+	#station_a.add_sensor_to_station(3, sensor_standard_deviation)
+	#station_a.add_sensor_to_station(4, sensor_standard_deviation)
+	#station_a.add_sensor_to_station(5, sensor_standard_deviation)
 
 	#connect sensors so that they are able to send data through each other
 	#station_a.connect_sensors("E", "D")
@@ -186,16 +217,12 @@ def main():
 
 
 	main_hub[station_names[0]] = station_a
-	main_hub[station_names[1]] = station_b
-	main_hub[station_names[2]] = station_c
-	main_hub[station_names[3]] = station_d
+	#main_hub[station_names[1]] = station_b
+	#main_hub[station_names[2]] = station_c
+	#main_hub[station_names[3]] = station_d
 
 	#data from one station
 	#data = generate_error_free_data(main_hub[station_names[0]], number_of_readings)
-
-	#save_data_to_file(data, "data.csv")
-
-	figure = plt.figure() #to plot each data in different figures
 
 	dataset = [["Sensor id", "Time", "Reading"]]
 
@@ -204,14 +231,8 @@ def main():
 	data_label = [] #to hold the labels of each sensor
 	width = 1
 	height = len(main_hub)
-	figures_in_graph_count = 1
-	figure.suptitle("Sensor networks")
+	oscilation_time = 2 #time in seconds
+	data = read_data_over_time(main_hub, number_of_readings, oscilation_time, width, height)
+	save_data_to_file(data, "data.csv")
 
-	for key in main_hub:
-		data = generate_error_free_data(main_hub[key], number_of_readings)
-		plot_station(main_hub[key], data, figures_in_graph_count, width, height, figure)
-		figures_in_graph_count += 1
-
-
-	plt.show()
 main()
