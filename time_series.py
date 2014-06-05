@@ -1,6 +1,7 @@
 import random
 import matplotlib.pyplot as plt
 import sensor
+import csv
 
 random_generator = random.Random()
 
@@ -72,6 +73,14 @@ def create_lattice_of_sensors(dimension, list_of_time_series):
 
 	return lattice_of_sensors
 
+
+def save_data_to_file(data, file_name):
+	with open(file_name, 'wb') as csv_file:
+		csv_writer = csv.writer(csv_file)
+		for time_series in data:
+			csv_writer.writerow(time_series)
+
+
 time_series = generate_time_series(1000)
 time_series_b = generate_time_series(1000)
 time_series_c = generate_time_series(1000)
@@ -85,9 +94,13 @@ merged_series = merge_series([normalized_time_series, normalized_time_series_b,
 list_of_time_series = [ time_series, time_series_b, time_series_c]
 lattice_of_sensors = create_lattice_of_sensors(100, list_of_time_series)
 
+data = []
+
 for group_of_sensors in lattice_of_sensors:
 	for sensor in group_of_sensors:
-		print "Time series:\n", sensor.get_time_series()
+		data.append(sensor.get_time_series())
+
+save_data_to_file(data, "data.csv")
 
 """
 
