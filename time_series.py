@@ -108,7 +108,7 @@ merged_series = merge_series([normalized_time_series, normalized_time_series_b,
 	normalized_time_series_c], [0, 0, 1])
 
 list_of_time_series = [ time_series, time_series_b, time_series_c]
-lattice_of_sensors = create_lattice_of_sensors(100, list_of_time_series)
+lattice_of_sensors = create_lattice_of_sensors(2, list_of_time_series)
 
 erroneous_data = []
 data_no_errors = []
@@ -116,34 +116,22 @@ for group_of_sensors in lattice_of_sensors:
 	for sensor in group_of_sensors:
 		sensor_data = sensor.get_time_series()
 		data_no_errors.append(sensor_data)
-		add_erroneous_reading_to_time_series(sensor_data, probability_of_erroneous_reading,
+		data_with_errors = add_erroneous_reading_to_time_series(sensor_data, probability_of_erroneous_reading,
 			erroneous_reading_standard_deviation)
-		erroneous_data.append(sensor_data)
+		erroneous_data.append(data_with_errors)
 
 save_data_to_file(data_no_errors, "data_no_errors.csv")
 save_data_to_file(erroneous_data, "erroneous_data.csv")
 
-
-"""
-
-normalized_merged_series = normalize_to_range(merged_series)
-
 figure = plt.figure()
+axes_no_errors = figure.add_subplot(2, 1, 1)
+axes_no_errors.set_title("Data no errors")
+transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
+axes_no_errors.plot(transposed_data)
 
-width = 1
-height = 4
-
-series_a_axes = figure.add_subplot(height, width, 1)
-series_a_axes.plot(normalized_time_series)
-
-series_b_axes = figure.add_subplot(height, width, 2)
-series_b_axes.plot(normalized_time_series_b)
-
-series_b_axes = figure.add_subplot(height, width, 3)
-series_b_axes.plot(normalized_time_series_c)
-
-merged_series_axes = figure.add_subplot(height, width, 4)
-merged_series_axes.plot(normalized_merged_series)
+axes_errors = figure.add_subplot(2, 1, 2)
+axes_errors.set_title("Data with errors")
+transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
+axes_errors.plot(transposed_data)
 
 plt.show()
-"""
