@@ -21,15 +21,15 @@ We will something else later
 	* Temperature drifts globally
 - Adding correlations
 	* Change temperature over time (moran process)
-	* Change station to correlated sensor group
+	* Change station to correlated sensor group (Done)
 	* Change mean in station to a periodically changin value such as sine wave.
 
 ##Errors and anomalies
 - Abrupt changes (added)
-- Large deviation 
+- Large deviation (added)
 - Unusually low variance (change in result from predicted value)
-- Deviation from neighbors (variance in result from neigbors)
-- Drift towards a particular value (0 or something else) (change over time in unforeseen ways)
+- Deviation from neighbors (variance in result from neigbors) (added)
+- Drift towards a particular value (0 or something else) (change over time in unforeseen ways) (added)
 - increasingly mean difference
 
 ##Ways of representing anomalies
