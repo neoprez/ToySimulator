@@ -1,5 +1,6 @@
 import random
 import matplotlib.pyplot as plt
+import sensor
 
 random_generator = random.Random()
 
@@ -47,6 +48,29 @@ def merge_series(list_of_time_series, list_of_weights):
 			(series[index] * coefficient_of_multiplication)
 	return merged_series
 
+def create_lattice_of_sensors(dimension, list_of_time_series):
+	"Creates a latex of dimensions: dimension x dimension. Ex 4 x 4"
+	lattice_of_sensors = []
+
+	for row in range(dimension):
+		list_of_sensors = []
+		for col in range(dimension):
+			weigth_from_b = row / (dimension * 1.0) #in vertical increase b 
+			weigth_from_a = col / (dimension * 1.0) #in horizontal increase a
+			weight_from_c = 0
+			total_weight = weigth_from_a + weigth_from_b
+			
+			if total_weight < 1:
+				weight_from_c = 1 - total_weight
+
+			list_of_weights = [weigth_from_a, weigth_from_b, weight_from_c]
+			time_series_for_sensor = merge_series(list_of_time_series, list_of_weights)
+			time_series_for_sensor = normalize_to_range(time_series_for_sensor)
+			list_of_sensors.append(sensor.Sensor(time_series_for_sensor))
+	
+	lattice_of_sensors.append(list_of_sensors)
+
+	return lattice_of_sensors
 
 time_series = generate_time_series(1000)
 time_series_b = generate_time_series(1000)
@@ -56,7 +80,16 @@ normalized_time_series_b = normalize_to_range(time_series_b)
 normalized_time_series_c = normalize_to_range(time_series_c)
 
 merged_series = merge_series([normalized_time_series, normalized_time_series_b, 
-	normalized_time_series_c], [0.25, 0.25, 0.5])
+	normalized_time_series_c], [0, 0, 1])
+
+list_of_time_series = [ time_series, time_series_b, time_series_c]
+lattice_of_sensors = create_lattice_of_sensors(100, list_of_time_series)
+
+for group_of_sensors in lattice_of_sensors:
+	for sensor in group_of_sensors:
+		print "Time series:\n", sensor.get_time_series()
+
+"""
 
 normalized_merged_series = normalize_to_range(merged_series)
 
@@ -78,3 +111,4 @@ merged_series_axes = figure.add_subplot(height, width, 4)
 merged_series_axes.plot(normalized_merged_series)
 
 plt.show()
+"""
