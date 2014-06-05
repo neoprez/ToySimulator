@@ -80,6 +80,22 @@ def save_data_to_file(data, file_name):
 		for time_series in data:
 			csv_writer.writerow(time_series)
 
+def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_reading, 
+	erroneous_reading_standard_deviation):
+	def get_erroneous_value(value):
+		return random_generator.normalvariate(value, erroneous_reading_standard_deviation)
+
+	def get_value_with_probabilistics_erroneous_value(value):
+		if random_generator.random() < probability_of_erroneous_reading:
+			return get_erroneous_value(value)
+		return value
+
+	return [get_value_with_probabilistics_erroneous_value(value) for value in time_series]
+
+
+
+probability_of_erroneous_reading = 0.05
+erroneous_reading_standard_deviation = 20
 
 time_series = generate_time_series(1000)
 time_series_b = generate_time_series(1000)
@@ -94,13 +110,19 @@ merged_series = merge_series([normalized_time_series, normalized_time_series_b,
 list_of_time_series = [ time_series, time_series_b, time_series_c]
 lattice_of_sensors = create_lattice_of_sensors(100, list_of_time_series)
 
-data = []
-
+erroneous_data = []
+data_no_errors = []
 for group_of_sensors in lattice_of_sensors:
 	for sensor in group_of_sensors:
-		data.append(sensor.get_time_series())
+		sensor_data = sensor.get_time_series()
+		data_no_errors.append(sensor_data)
+		add_erroneous_reading_to_time_series(sensor_data, probability_of_erroneous_reading,
+			erroneous_reading_standard_deviation)
+		erroneous_data.append(sensor_data)
 
-save_data_to_file(data, "data.csv")
+save_data_to_file(data_no_errors, "data_no_errors.csv")
+save_data_to_file(erroneous_data, "erroneous_data.csv")
+
 
 """
 
