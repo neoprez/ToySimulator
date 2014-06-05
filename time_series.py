@@ -68,8 +68,7 @@ def create_lattice_of_sensors(dimension, list_of_time_series):
 			time_series_for_sensor = merge_series(list_of_time_series, list_of_weights)
 			time_series_for_sensor = normalize_to_range(time_series_for_sensor)
 			list_of_sensors.append(sensor.Sensor(time_series_for_sensor))
-	
-	lattice_of_sensors.append(list_of_sensors)
+		lattice_of_sensors.append(list_of_sensors)
 
 	return lattice_of_sensors
 
@@ -109,16 +108,47 @@ def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of
 	modified_time_series = time_series[:]
 
 	for idx in range(len(modified_time_series)): 
-		value = modified_time_series[idx]
 		if does_continous_erroneous_value_starts():
+			value = modified_time_series[idx]
 			insert_continous_value(value, idx, modified_time_series)
 
 	return modified_time_series
 
+def add_erroneous_drift_towards_a_value(time_series, probability_of_erroneous_reading, 
+	number_of_erroneous_points):
+	"""
+	This function adds erroneous drifts towards the a value.
+	The value we are using is 0.
+	"""
+	def does_drift_towards_value_starts():
+		return random_generator.random() < probability_of_erroneous_reading
 
-number_of_continous_erroneous_readings = 10
-probability_of_erroneous_reading = 0.05
+	def drift_towards_a_value(series, value_to_drift, start_index, initial_reducing_percentage):
+		end_index = min(start_index+number_of_erroneous_points, len(series))
+		reducing_percentage = initial_reducing_percentage
+
+		for idx in range(start_index, end_index):
+			amount_to_subtract = value_to_drift * reducing_percentage
+			series[idx] = value_to_drift - amount_to_subtract
+			value_to_drift = series[idx]
+			reducing_percentage += initial_reducing_percentage
+
+
+	initial_reducing_percentage = (100.0/number_of_erroneous_points) * 0.01
+	modified_time_series = time_series[:]
+
+	for idx in range(len(modified_time_series)):
+		if does_drift_towards_value_starts():
+			value_to_drift = modified_time_series[idx]
+			drift_towards_a_value(modified_time_series, value_to_drift, 
+				idx, initial_reducing_percentage)
+
+	return modified_time_series
+
+number_of_continous_erroneous_readings = 50
+probability_of_erroneous_reading = 0.01
 erroneous_reading_standard_deviation = 20
+number_of_erroneous_points = 10
 
 time_series = generate_time_series(1000)
 time_series_b = generate_time_series(1000)
@@ -130,25 +160,32 @@ normalized_time_series_c = normalize_to_range(time_series_c)
 merged_series = merge_series([normalized_time_series, normalized_time_series_b, 
 	normalized_time_series_c], [0, 0, 1])
 
-list_of_time_series = [ time_series, time_series_b, time_series_c]
+list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 lattice_of_sensors = create_lattice_of_sensors(2, list_of_time_series)
 
 erroneous_data = []
 data_no_errors = []
 continous_errors = []
+drifted_data = []
 
 for group_of_sensors in lattice_of_sensors:
 	for sensor in group_of_sensors:
 		sensor_data = sensor.get_time_series()
+		
 		data_no_errors.append(sensor_data)
 
 		data_with_errors = add_erroneous_reading_to_time_series(sensor_data, 
 			probability_of_erroneous_reading, erroneous_reading_standard_deviation)
+		
 		continous_erroneous_data = add_erroneous_continuous_sequence_to_time_series(sensor_data, 
 			probability_of_erroneous_reading, number_of_continous_erroneous_readings)
 
+		drifted_errors_data = add_erroneous_drift_towards_a_value(sensor_data, 
+			probability_of_erroneous_reading, number_of_erroneous_points)
+
 		continous_errors.append(continous_erroneous_data)
 		erroneous_data.append(data_with_errors)
+		drifted_data.append(drifted_errors_data)
 
 save_data_to_file(data_no_errors, "data_no_errors.csv")
 save_data_to_file(erroneous_data, "erroneous_data.csv")
@@ -159,6 +196,16 @@ axes_no_errors.set_title("Data no errors")
 transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
 axes_no_errors.plot(transposed_data)
 
+axes_c = figure.add_subplot(3, 1, 2)
+axes_c.set_title("time_series_c")
+#transposed_data = map(list, zip(*time_series)) #to transpose the data
+axes_c.plot(normalized_time_series_c)
+
+axes_drifted = figure.add_subplot(3, 1, 3)
+axes_drifted.set_title("drifted_data")
+transposed_data = map(list, zip(*drifted_data)) #to transpose the data
+axes_drifted.plot(transposed_data)
+"""
 axes_errors = figure.add_subplot(3, 1, 2)
 axes_errors.set_title("Data with errors")
 transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
@@ -168,5 +215,6 @@ axes_continous_errors = figure.add_subplot(3, 1, 3)
 axes_continous_errors.set_title("Data with continous errors")
 transposed_data = map(list, zip(*continous_errors)) #to transpose the data
 axes_continous_errors.plot(transposed_data)
+"""
 
 plt.show()
