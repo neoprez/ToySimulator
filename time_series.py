@@ -145,6 +145,51 @@ def add_erroneous_drift_towards_a_value(time_series, probability_of_erroneous_re
 
 	return modified_time_series
 
+def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
+	number_of_continous_erroneous_readings):
+	"""
+	This function adds a sequence erroneous readings to a single sensor time series. 
+	This function modifies the sensor's original time series.
+	"""
+	time_series = sensor.get_time_series()
+	erroneous_reading = add_erroneous_continuous_sequence_to_time_series(time_series, 
+		probability_of_erroneous_reading, number_of_continous_erroneous_readings)
+	sensor.set_time_series(erroneous_reading)
+
+def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
+	erroneous_reading_standard_deviation):
+	"""
+	This function adds erroneous readings to a single sensor time series. 
+	This function modifies the sensor's original time series.
+	"""
+	time_series = sensor.get_time_series()
+	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
+		probability_of_erroneous_reading, erroneous_reading_standard_deviation)
+	sensor.set_time_series(erroneous_reading)
+
+def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneous_reading, 
+	number_of_erroneous_points):
+	"""
+	This function adds erroneous drift to a single sensor time series. 
+	This function modifies the sensor's original time series.
+	"""
+	time_series = sensor.get_time_series()
+	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
+		probability_of_erroneous_reading, erroneous_reading_standard_deviation)
+	sensor.set_time_series(erroneous_reading)
+
+def gather_time_series_from_sensors(lattice_of_sensors):
+	"""
+	This function collects the time series from the sensors in the lattice.
+	"""
+	collection_of_time_series = []
+	for group_of_sensors in lattice_of_sensors:
+		for sensor in group_of_sensors:
+			sensor_data = sensor.get_time_series()
+			collection_of_time_series.append(sensor_data)
+	return collection_of_time_series
+	
+
 number_of_continous_erroneous_readings = 50
 probability_of_erroneous_reading = 0.01
 erroneous_reading_standard_deviation = 20
@@ -160,42 +205,44 @@ normalized_time_series_c = normalize_to_range(time_series_c)
 merged_series = merge_series([normalized_time_series, normalized_time_series_b, 
 	normalized_time_series_c], [0, 0, 1])
 
+dimension_of_lattice = 2
 list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
-lattice_of_sensors = create_lattice_of_sensors(2, list_of_time_series)
+lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 
 erroneous_data = []
-data_no_errors = []
+
 continous_errors = []
 drifted_data = []
-
+data_no_errors = gather_time_series_from_sensors(lattice_of_sensors)
+"""
 for group_of_sensors in lattice_of_sensors:
 	for sensor in group_of_sensors:
 		sensor_data = sensor.get_time_series()
-		
 		data_no_errors.append(sensor_data)
+"""
 
-		data_with_errors = add_erroneous_reading_to_time_series(sensor_data, 
-			probability_of_erroneous_reading, erroneous_reading_standard_deviation)
-		
-		continous_erroneous_data = add_erroneous_continuous_sequence_to_time_series(sensor_data, 
-			probability_of_erroneous_reading, number_of_continous_erroneous_readings)
+lattice_row_1 = lattice_of_sensors[0]
+lattice_row_2 = lattice_of_sensors[1]
 
-		drifted_errors_data = add_erroneous_drift_towards_a_value(sensor_data, 
-			probability_of_erroneous_reading, number_of_erroneous_points)
+sensor_0 = lattice_row_1[0]
+sensor_1 = lattice_row_1[1]
+sensor_2 = lattice_row_2[0]
 
-		continous_errors.append(continous_erroneous_data)
-		erroneous_data.append(data_with_errors)
-		drifted_data.append(drifted_errors_data)
+add_erroneous_reading_to_sensor(sensor_0, probability_of_erroneous_reading, 
+	erroneous_reading_standard_deviation)
+add_erroneous_drift_towards_a_value_to_sensor(sensor_1, probability_of_erroneous_reading,
+	number_of_erroneous_points)
+add_continous_erroneous_reading_to_sensor(sensor_2, probability_of_erroneous_reading,
+	number_of_continous_erroneous_readings)
 
-save_data_to_file(data_no_errors, "data_no_errors.csv")
-save_data_to_file(erroneous_data, "erroneous_data.csv")
-
+height = 1
 figure = plt.figure()
-axes_no_errors = figure.add_subplot(3, 1, 1)
+axes_no_errors = figure.add_subplot(height, 1, 1)
 axes_no_errors.set_title("Data no errors")
 transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
 axes_no_errors.plot(transposed_data)
 
+"""
 axes_c = figure.add_subplot(3, 1, 2)
 axes_c.set_title("time_series_c")
 #transposed_data = map(list, zip(*time_series)) #to transpose the data
@@ -205,7 +252,6 @@ axes_drifted = figure.add_subplot(3, 1, 3)
 axes_drifted.set_title("drifted_data")
 transposed_data = map(list, zip(*drifted_data)) #to transpose the data
 axes_drifted.plot(transposed_data)
-"""
 axes_errors = figure.add_subplot(3, 1, 2)
 axes_errors.set_title("Data with errors")
 transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
