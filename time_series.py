@@ -174,8 +174,8 @@ def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneo
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
-	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
-		probability_of_erroneous_reading, erroneous_reading_standard_deviation)
+	erroneous_reading = add_erroneous_drift_towards_a_value(time_series, 
+		probability_of_erroneous_reading, number_of_erroneous_points)
 	sensor.set_time_series(erroneous_reading)
 
 def gather_time_series_from_sensors(lattice_of_sensors):
@@ -209,24 +209,17 @@ dimension_of_lattice = 2
 list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 
-erroneous_data = []
 
 continous_errors = []
 drifted_data = []
 data_no_errors = gather_time_series_from_sensors(lattice_of_sensors)
-"""
-for group_of_sensors in lattice_of_sensors:
-	for sensor in group_of_sensors:
-		sensor_data = sensor.get_time_series()
-		data_no_errors.append(sensor_data)
-"""
 
 lattice_row_1 = lattice_of_sensors[0]
 lattice_row_2 = lattice_of_sensors[1]
 
 sensor_0 = lattice_row_1[0]
 sensor_1 = lattice_row_1[1]
-sensor_2 = lattice_row_2[0]
+sensor_2 = lattice_row_2[1]
 
 add_erroneous_reading_to_sensor(sensor_0, probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation)
@@ -235,7 +228,9 @@ add_erroneous_drift_towards_a_value_to_sensor(sensor_1, probability_of_erroneous
 add_continous_erroneous_reading_to_sensor(sensor_2, probability_of_erroneous_reading,
 	number_of_continous_erroneous_readings)
 
-height = 1
+erroneous_data = gather_time_series_from_sensors(lattice_of_sensors)
+
+height = 2
 figure = plt.figure()
 axes_no_errors = figure.add_subplot(height, 1, 1)
 axes_no_errors.set_title("Data no errors")
@@ -252,11 +247,13 @@ axes_drifted = figure.add_subplot(3, 1, 3)
 axes_drifted.set_title("drifted_data")
 transposed_data = map(list, zip(*drifted_data)) #to transpose the data
 axes_drifted.plot(transposed_data)
-axes_errors = figure.add_subplot(3, 1, 2)
+"""
+
+axes_errors = figure.add_subplot(height, 1, 2)
 axes_errors.set_title("Data with errors")
 transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
 axes_errors.plot(transposed_data)
-
+"""
 axes_continous_errors = figure.add_subplot(3, 1, 3)
 axes_continous_errors.set_title("Data with continous errors")
 transposed_data = map(list, zip(*continous_errors)) #to transpose the data
