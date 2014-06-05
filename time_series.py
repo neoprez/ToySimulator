@@ -92,8 +92,31 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 
 	return [get_value_with_probabilistics_erroneous_value(value) for value in time_series]
 
+def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of_erroneous_reading, 
+	number_of_continous_erroneous_readings):
+	"""
+	This function produces a continous sequence of erroneous readings. 
+	Ex: 34, 35,35,35, 32, 38 ...
+	"""
+	def does_continous_erroneous_value_starts():
+		return random_generator.random() < probability_of_erroneous_reading
+
+	def insert_continous_value(value, start_index, data):
+		end_index = min(start_index+number_of_continous_erroneous_readings, len(data))
+		for i in range(start_index, end_index):
+			data[i] = value
+	
+	modified_time_series = time_series[:]
+
+	for idx in range(len(modified_time_series)): 
+		value = modified_time_series[idx]
+		if does_continous_erroneous_value_starts():
+			insert_continous_value(value, idx, modified_time_series)
+
+	return modified_time_series
 
 
+number_of_continous_erroneous_readings = 10
 probability_of_erroneous_reading = 0.05
 erroneous_reading_standard_deviation = 20
 
@@ -112,26 +135,38 @@ lattice_of_sensors = create_lattice_of_sensors(2, list_of_time_series)
 
 erroneous_data = []
 data_no_errors = []
+continous_errors = []
+
 for group_of_sensors in lattice_of_sensors:
 	for sensor in group_of_sensors:
 		sensor_data = sensor.get_time_series()
 		data_no_errors.append(sensor_data)
-		data_with_errors = add_erroneous_reading_to_time_series(sensor_data, probability_of_erroneous_reading,
-			erroneous_reading_standard_deviation)
+
+		data_with_errors = add_erroneous_reading_to_time_series(sensor_data, 
+			probability_of_erroneous_reading, erroneous_reading_standard_deviation)
+		continous_erroneous_data = add_erroneous_continuous_sequence_to_time_series(sensor_data, 
+			probability_of_erroneous_reading, number_of_continous_erroneous_readings)
+
+		continous_errors.append(continous_erroneous_data)
 		erroneous_data.append(data_with_errors)
 
 save_data_to_file(data_no_errors, "data_no_errors.csv")
 save_data_to_file(erroneous_data, "erroneous_data.csv")
 
 figure = plt.figure()
-axes_no_errors = figure.add_subplot(2, 1, 1)
+axes_no_errors = figure.add_subplot(3, 1, 1)
 axes_no_errors.set_title("Data no errors")
 transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
 axes_no_errors.plot(transposed_data)
 
-axes_errors = figure.add_subplot(2, 1, 2)
+axes_errors = figure.add_subplot(3, 1, 2)
 axes_errors.set_title("Data with errors")
 transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
 axes_errors.plot(transposed_data)
+
+axes_continous_errors = figure.add_subplot(3, 1, 3)
+axes_continous_errors.set_title("Data with continous errors")
+transposed_data = map(list, zip(*continous_errors)) #to transpose the data
+axes_continous_errors.plot(transposed_data)
 
 plt.show()
