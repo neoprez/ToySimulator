@@ -30,10 +30,12 @@ def normalize_to_range(time_series, desired_max=100):
 	min_number = min(time_series)
 	max_number = max(time_series) 
 
-	min_coef = - min_number
-	max_coef = desired_max / (max_number + min_coef * 1.0)
-
-	return [(curr_number + min_coef) * max_coef for curr_number in time_series]
+	if min_number == max_number:
+		return time_series
+	else:
+		min_coef = - min_number
+		max_coef = desired_max / (max_number + min_coef * 1.0)
+		return [(curr_number + min_coef) * max_coef for curr_number in time_series]
 
 def merge_series(list_of_time_series, list_of_weights):
 	"""
@@ -230,12 +232,17 @@ def generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_vo
 
 		for r in range(start_row, end_row):
 			for c in range(start_col, end_col):
-		 		sensor = lattice_of_sensors[r][c]
-		 		if not (r != row_of_first_ocurrence and c != col_of_first_ocurrence):
+				row_distance = abs(r - row_of_first_ocurrence)
+				col_distance = abs(c - col_of_first_ocurrence)
+				distance = max(row_distance, col_distance)
+		 		
+		 		if distance == current_distance_from_beginning:
+		 			sensor = lattice_of_sensors[r][c]
 		 			change_sensor_time_series_to_rare_series(sensor, loudness_of_the_area)
 
 	#pick a random sensor
 	row_of_first_ocurrence, col_of_first_ocurrence = get_a_random_sensor_index()
+	print row_of_first_ocurrence, col_of_first_ocurrence
 	sensor = lattice_of_sensors[row_of_first_ocurrence][col_of_first_ocurrence]
 	change_sensor_time_series_to_rare_series(sensor, loudness)
 
@@ -289,15 +296,36 @@ erroneous_data = gather_time_series_from_sensors(lattice_of_sensors)
 
 "The rare event part"
 max_dist = 1
-min_hearable_volume = 0.1
+min_hearable_volume = 0.5
 loudness = 0.9
 rare_event_song = generate_time_series(number_of_time_points)
 rare_event_song = normalize_to_range(rare_event_song)
 generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
  rare_event_song)
-
+"""
+rare_song2 = [50] * number_of_time_points
+normal1 = [1] * number_of_time_points
+"""
 height = 3
 figure = plt.figure()
+"""
+for sensor_group in lattice_of_sensors:
+	for sensor in sensor_group:
+		sensor.set_time_series(normal1)
+
+normal_data = gather_time_series_from_sensors(lattice_of_sensors)
+axes_n = figure.add_subplot(height, 1, 1)
+transposed_data = map(list, zip(*normal_data))
+axes_n.plot(transposed_data)
+axes_n.legend(range(len(transposed_data)))
+
+generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
+ rare_song2)
+rare_d = gather_time_series_from_sensors(lattice_of_sensors)
+rare_ax = figure.add_subplot(height, 1, 2)
+transposed_data = map(list, zip(*rare_d))
+rare_ax.plot(transposed_data)
+"""
 axes_no_errors = figure.add_subplot(height, 1, 1)
 axes_no_errors.set_title("Data no errors")
 transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
@@ -314,6 +342,7 @@ axes_rare.legend(range(0, dimension_of_lattice * dimension_of_lattice))
 axes_rare_song = figure.add_subplot(height, 1, 3)
 axes_rare_song.set_title("Rare song")
 axes_rare_song.plot(rare_event_song)
+
 """
 axes_errors = figure.add_subplot(height, 1, 2)
 axes_errors.set_title("Data with errors")
