@@ -259,20 +259,27 @@ erroneous_reading_standard_deviation = 20
 number_of_erroneous_points = 10
 number_of_time_points = 1000
 
-time_series = generate_time_series(number_of_time_points)
-time_series_b = generate_time_series(number_of_time_points)
-time_series_c = generate_time_series(number_of_time_points)
+#we are using a lattice of sensors that reads data from different
+#songs. We combine the listening from 3 different readings.
+time_series = generate_time_series(number_of_time_points) #series a
+time_series_b = generate_time_series(number_of_time_points) #series b
+time_series_c = generate_time_series(number_of_time_points) #series c
+#normalize the time series so that they fall in the same range. Our case 0 to 100
 normalized_time_series = normalize_to_range(time_series)
 normalized_time_series_b = normalize_to_range(time_series_b)
 normalized_time_series_c = normalize_to_range(time_series_c)
-"""
-merged_series = merge_series([normalized_time_series, normalized_time_series_b, 
-	normalized_time_series_c], [0, 0, 1])
-"""
-dimension_of_lattice = 2
+
+dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
+#assigns the values to the sensor based on the location of the sensors in the lattice
 list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 
+
+
+
+"""
+merged_series = merge_series([normalized_time_series, normalized_time_series_b, 
+	normalized_time_series_c], [0, 0, 1])
 
 continous_errors = []
 drifted_data = []
@@ -284,14 +291,14 @@ lattice_row_2 = lattice_of_sensors[1]
 sensor_0 = lattice_row_1[0]
 sensor_1 = lattice_row_1[1]
 sensor_2 = lattice_row_2[1]
-"""
+
 add_erroneous_reading_to_sensor(sensor_0, probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation)
 add_erroneous_drift_towards_a_value_to_sensor(sensor_1, probability_of_erroneous_reading,
 	number_of_erroneous_points)
 add_continous_erroneous_reading_to_sensor(sensor_2, probability_of_erroneous_reading,
 	number_of_continous_erroneous_readings)
-"""
+
 erroneous_data = gather_time_series_from_sensors(lattice_of_sensors)
 
 "The rare event part"
@@ -302,13 +309,13 @@ rare_event_song = generate_time_series(number_of_time_points)
 rare_event_song = normalize_to_range(rare_event_song)
 generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
  rare_event_song)
-"""
+
 rare_song2 = [50] * number_of_time_points
 normal1 = [1] * number_of_time_points
-"""
+
 height = 3
 figure = plt.figure()
-"""
+
 for sensor_group in lattice_of_sensors:
 	for sensor in sensor_group:
 		sensor.set_time_series(normal1)
@@ -325,7 +332,7 @@ rare_d = gather_time_series_from_sensors(lattice_of_sensors)
 rare_ax = figure.add_subplot(height, 1, 2)
 transposed_data = map(list, zip(*rare_d))
 rare_ax.plot(transposed_data)
-"""
+
 axes_no_errors = figure.add_subplot(height, 1, 1)
 axes_no_errors.set_title("Data no errors")
 transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
@@ -343,10 +350,11 @@ axes_rare_song = figure.add_subplot(height, 1, 3)
 axes_rare_song.set_title("Rare song")
 axes_rare_song.plot(rare_event_song)
 
-"""
+
 axes_errors = figure.add_subplot(height, 1, 2)
 axes_errors.set_title("Data with errors")
 transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
 axes_errors.plot(transposed_data)
-"""
+
 plt.show()
+"""
