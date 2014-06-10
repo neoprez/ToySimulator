@@ -25,6 +25,11 @@ def generate_time_series(number_of_time_points):
 
 	return time_series
 
+def generate_predictable_time_series(number_of_time_points):
+	"This retuns a predictable time series"
+	return [x/100.0 for x in range(number_of_time_points)]
+
+
 def normalize_to_range(time_series, desired_max=100):
 	"""
 	This function normalizes the data in time series to fall into the 
@@ -34,7 +39,7 @@ def normalize_to_range(time_series, desired_max=100):
 	max_number = max(time_series) 
 
 	if min_number == max_number:
-		return time_series
+		return [0] * len(time_series)
 	else:
 		min_coef = - min_number
 		max_coef = desired_max / (max_number + min_coef * 1.0)
@@ -71,7 +76,7 @@ def create_lattice_of_sensors(dimension, list_of_time_series):
 
 			list_of_weights = [weigth_from_a, weigth_from_b, weight_from_c]
 			time_series_for_sensor = merge_series(list_of_time_series, list_of_weights)
-			time_series_for_sensor = normalize_to_range(time_series_for_sensor)
+			time_series_for_sensor = normalize_to_range(time_series_for_sensor, 1)
 			list_of_sensors.append(sensor.Sensor(time_series_for_sensor))
 		lattice_of_sensors.append(list_of_sensors)
 
@@ -264,7 +269,7 @@ def create_neural_network(vector_size):
    	expert.resetEpoch = 1  #HOW MANY TIMES IS BEING TRAINED
    	expert.resetLimit = 1
    	expert.momentum = 0
-   	expert.epsilon = 0.25
+   	expert.epsilon = 0.5
 
    	return expert
 
@@ -303,13 +308,13 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	total_error = 0.0
 
 	for idx in range(1, number_of_time_points - 1):
-		inputs.append(normalize_to_range(get_vector_of_time_series_from_all_sensors(idx - 1), 1))
-		outputs.append(normalize_to_range(get_vector_of_time_series_from_all_sensors(idx), 1))
+		inputs.append(get_vector_of_time_series_from_all_sensors(idx - 1))
+		outputs.append(get_vector_of_time_series_from_all_sensors(idx))
 		neural_net.step(input = inputs[-1], output = outputs[-1])
 
 		prediction = ask_neural_net(outputs[-1])
 
-		next_times_series = normalize_to_range(get_vector_of_time_series_from_all_sensors(idx + 1),1)
+		next_times_series = get_vector_of_time_series_from_all_sensors(idx + 1)
 		rmse = get_rmse(prediction, next_times_series)
 		errors_over_time.append(rmse)
 		total_error += rmse
@@ -327,13 +332,16 @@ number_of_time_points = 1000
 
 #we are using a lattice of sensors that reads data from different
 #songs. We combine the listening from 3 different readings.
-time_series = generate_time_series(number_of_time_points) #series a
-time_series_b = generate_time_series(number_of_time_points) #series b
-time_series_c = generate_time_series(number_of_time_points) #series c
+#time_series = generate_time_series(number_of_time_points) #series a
+time_series = generate_predictable_time_series(number_of_time_points)
+#time_series_b = generate_time_series(number_of_time_points) #series b
+time_series_b = generate_predictable_time_series(number_of_time_points) #series b
+#time_series_c = generate_time_series(number_of_time_points) #series c
+time_series_c = generate_predictable_time_series(number_of_time_points) #series c
 #normalize the time series so that they fall in the same range. Our case 0 to 100
-normalized_time_series = normalize_to_range(time_series)
-normalized_time_series_b = normalize_to_range(time_series_b)
-normalized_time_series_c = normalize_to_range(time_series_c)
+normalized_time_series = normalize_to_range(time_series, 1.0)
+normalized_time_series_b = normalize_to_range(time_series_b, 1.0)
+normalized_time_series_c = normalize_to_range(time_series_c, 1.0)
 
 dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
 #assigns the values to the sensor based on the location of the sensors in the lattice
@@ -396,13 +404,15 @@ figure = plt.figure()
 for sensor_group in lattice_of_sensors:
 	for sensor in sensor_group:
 		sensor.set_time_series(normal1)
-
+"""
+figure = plt.figure()
 normal_data = gather_time_series_from_sensors(lattice_of_sensors)
-axes_n = figure.add_subplot(height, 1, 1)
+axes_n = figure.add_subplot(1, 1, 1)
 transposed_data = map(list, zip(*normal_data))
 axes_n.plot(transposed_data)
 axes_n.legend(range(len(transposed_data)))
-
+plt.show()
+"""
 generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
  rare_song2)
 rare_d = gather_time_series_from_sensors(lattice_of_sensors)
