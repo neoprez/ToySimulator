@@ -2,6 +2,9 @@ import random
 import matplotlib.pyplot as plt
 import sensor
 import csv
+import neuralnet
+import math
+import conx
 
 random_generator = random.Random()
 
@@ -250,8 +253,71 @@ def generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_vo
 		add_loudness_to_sensors_at_a_distance(current_distance, row_of_first_ocurrence, 
 			col_of_first_ocurrence)
 
+def create_neural_network(vector_size):
+	"Creates a neural network"
+	expert = conx.Network()
+	expert.addLayer("input", vector_size)
+   	expert.addLayer("hidden", vector_size)
+   	expert.addLayer("output", vector_size)
+   	expert.connect("input", "hidden")
+   	expert.connect("hidden", "output")
+   	expert.resetEpoch = 1  #HOW MANY TIMES IS BEING TRAINED
+   	expert.resetLimit = 1
+   	expert.momentum = 0
+   	expert.epsilon = 0.25
 
+   	return expert
 
+def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points):
+	def get_vector_of_time_series_from_all_sensors(time_point):
+		vector_of_readings = []
+
+		for sensor_group in lattice_of_sensors:
+			for sensor in sensor_group:
+				vector_of_readings.append(sensor.get_reading_at_time(time_point))
+
+		return vector_of_readings
+	def ask_neural_net(input):
+		"""
+		Find out what the expert predicts for the given input.
+		"""
+		neural_net['input'].copyActivations(input)
+		neural_net.propagate()
+		return neural_net['output'].activation
+
+	def get_rmse(outputs, next_times_series):
+		"""Returns the root mean square error from the two time series"""
+		difference = []
+
+		for i in range(len(outputs)):
+			result = pow(outputs[i] - next_times_series[i], 2)
+			difference.append(result)
+
+		sum_of_differences = sum(difference)
+		
+		return math.sqrt(sum_of_differences)
+
+	inputs = []
+	outputs = []
+	errors_over_time = []
+	total_error = 0.0
+
+	for idx in range(1, number_of_time_points - 1):
+		inputs.append(normalize_to_range(get_vector_of_time_series_from_all_sensors(idx - 1), 1))
+		outputs.append(normalize_to_range(get_vector_of_time_series_from_all_sensors(idx), 1))
+		neural_net.step(input = inputs[-1], output = outputs[-1])
+
+		prediction = ask_neural_net(outputs[-1])
+
+		next_times_series = normalize_to_range(get_vector_of_time_series_from_all_sensors(idx + 1),1)
+		rmse = get_rmse(prediction, next_times_series)
+		errors_over_time.append(rmse)
+		total_error += rmse
+		#print "Root mean se:", rmse, "i:", idx
+
+	print "Total Error:", str(total_error/number_of_time_points)
+	plt.plot(errors_over_time)
+	plt.show()
 
 number_of_continous_erroneous_readings = 50
 probability_of_erroneous_reading = 0.01
@@ -274,7 +340,18 @@ dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
 list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 
+input_vector_size = 1
+target_vector_size = 1
+errors = 0
 
+neural_net = create_neural_network(pow(dimension_of_lattice, 2))
+run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
+
+#region = neuralnet.Region(input_vector_size, target_vector_size, errors, 0)
+#previous_reading = [lattice_of_sensors[0][0].get_reading_at_time(0)]
+#actual_reading = [lattice_of_sensors[0][0].get_reading_at_time(1)]
+
+#region.inVecCuriosity(actual_reading, previous_reading)
 
 
 """
