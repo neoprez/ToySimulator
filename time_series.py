@@ -29,6 +29,11 @@ def generate_predictable_time_series(number_of_time_points):
 	"This retuns a predictable time series"
 	return [x/100.0 for x in range(number_of_time_points)]
 
+def generate_predictable_sin_time_series(number_of_time_points):
+	return [math.sin(x/20.0) for x in range(number_of_time_points)]
+
+def generate_predictable_parabola_time_series(number_of_time_points, shift=0):
+	return [(x+shift)**2 for x in range(number_of_time_points)]
 
 def normalize_to_range(time_series, desired_max=100):
 	"""
@@ -262,14 +267,14 @@ def create_neural_network(vector_size):
 	"Creates a neural network"
 	expert = conx.Network()
 	expert.addLayer("input", vector_size)
-   	expert.addLayer("hidden", vector_size)
-   	expert.addLayer("output", vector_size)
-   	expert.connect("input", "hidden")
-   	expert.connect("hidden", "output")
-   	expert.resetEpoch = 1  #HOW MANY TIMES IS BEING TRAINED
-   	expert.resetLimit = 1
-   	expert.momentum = 0
-   	expert.epsilon = 0.5
+	expert.addLayer("hidden", vector_size)
+	expert.addLayer("output", vector_size)
+	expert.connect("input", "hidden")
+	expert.connect("hidden", "output")
+	expert.resetEpoch = 1  #HOW MANY TIMES IS BEING TRAINED
+	expert.resetLimit = 1
+	expert.momentum = 0
+	expert.epsilon = 0.5
 
    	return expert
 
@@ -282,13 +287,18 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				vector_of_readings.append(sensor.get_reading_at_time(time_point))
 
 		return vector_of_readings
-	def ask_neural_net(input):
+	def ask_neural_net(inpt):
 		"""
 		Find out what the expert predicts for the given input.
 		"""
-		neural_net['input'].copyActivations(input)
+		neural_net['input'].copyActivations(inpt)
 		neural_net.propagate()
 		return neural_net['output'].activation
+
+	def train_neural_net_on_all(inputs, outputs):
+		neural_net.setInputs(inputs)
+		neural_net.setOutputs(outputs)
+		neural_net.train()
 
 	def get_rmse(outputs, next_times_series):
 		"""Returns the root mean square error from the two time series"""
@@ -312,6 +322,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		outputs.append(get_vector_of_time_series_from_all_sensors(idx))
 		neural_net.step(input = inputs[-1], output = outputs[-1])
 
+		#train_neural_net_on_all(inputs, outputs)
 		prediction = ask_neural_net(outputs[-1])
 
 		next_times_series = get_vector_of_time_series_from_all_sensors(idx + 1)
@@ -328,16 +339,22 @@ number_of_continous_erroneous_readings = 50
 probability_of_erroneous_reading = 0.01
 erroneous_reading_standard_deviation = 20
 number_of_erroneous_points = 10
-number_of_time_points = 1000
+number_of_time_points = 2000
 
 #we are using a lattice of sensors that reads data from different
 #songs. We combine the listening from 3 different readings.
 #time_series = generate_time_series(number_of_time_points) #series a
-time_series = generate_predictable_time_series(number_of_time_points)
+time_series = generate_predictable_parabola_time_series(number_of_time_points)
+#time_series = generate_predictable_sin_time_series(number_of_time_points)
+#time_series = generate_predictable_parabola_time_series(number_of_time_points)
 #time_series_b = generate_time_series(number_of_time_points) #series b
 time_series_b = generate_predictable_time_series(number_of_time_points) #series b
+#time_series_b = generate_predictable_parabola_time_series(number_of_time_points)
+#time_series_b = generate_predictable_time_series(number_of_time_points) #series b
 #time_series_c = generate_time_series(number_of_time_points) #series c
-time_series_c = generate_predictable_time_series(number_of_time_points) #series c
+#time_series_c = generate_predictable_time_series(number_of_time_points) #series c
+#time_series_c = generate_predictable_sin_time_series(number_of_time_points) #series c
+time_series_c = generate_predictable_parabola_time_series(number_of_time_points, 100) #series c
 #normalize the time series so that they fall in the same range. Our case 0 to 100
 normalized_time_series = normalize_to_range(time_series, 1.0)
 normalized_time_series_b = normalize_to_range(time_series_b, 1.0)
@@ -352,7 +369,7 @@ input_vector_size = 1
 target_vector_size = 1
 errors = 0
 
-neural_net = create_neural_network(pow(dimension_of_lattice, 2))
+neural_net = create_neural_network(dimension_of_lattice**2)
 run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
 
 #region = neuralnet.Region(input_vector_size, target_vector_size, errors, 0)
@@ -404,15 +421,16 @@ figure = plt.figure()
 for sensor_group in lattice_of_sensors:
 	for sensor in sensor_group:
 		sensor.set_time_series(normal1)
-"""
+
 figure = plt.figure()
 normal_data = gather_time_series_from_sensors(lattice_of_sensors)
 axes_n = figure.add_subplot(1, 1, 1)
 transposed_data = map(list, zip(*normal_data))
+print transposed_data
 axes_n.plot(transposed_data)
 axes_n.legend(range(len(transposed_data)))
 plt.show()
-"""
+
 generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
  rare_song2)
 rare_d = gather_time_series_from_sensors(lattice_of_sensors)
