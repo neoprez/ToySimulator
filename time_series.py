@@ -403,7 +403,7 @@ number_of_time_points = 2000
 #we are using a lattice of sensors that reads data from different
 #songs. We combine the listening from 3 different readings.
 #time_series = generate_time_series(number_of_time_points) #series a
-time_series = generate_predictable_parabola_time_series(number_of_time_points)
+"""time_series = generate_predictable_parabola_time_series(number_of_time_points)
 #time_series = generate_predictable_sin_time_series(number_of_time_points)
 #time_series = generate_predictable_parabola_time_series(number_of_time_points)
 #time_series_b = generate_time_series(number_of_time_points) #series b
@@ -437,7 +437,7 @@ save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
 
 time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
 data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
-save_data_to_file(data, "time_series" + run_id + ".csv" )
+save_data_to_file(data, "time_series" + run_id + ".csv" )"""
 averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files()
 
 the_data_for_file = []
