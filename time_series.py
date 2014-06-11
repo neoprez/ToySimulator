@@ -6,6 +6,7 @@ import neuralnet
 import math
 import conx
 import sys
+import os
 
 random_generator = random.Random()
 
@@ -88,12 +89,19 @@ def create_lattice_of_sensors(dimension, list_of_time_series):
 
 	return lattice_of_sensors
 
-
 def save_data_to_file(data, file_name, mode="wb"):
 	with open(file_name, mode) as csv_file:
 		csv_writer = csv.writer(csv_file)
 		for time_series in data:
 			csv_writer.writerow(time_series)
+
+def get_data_from_file(file_name, mode="rb"):
+	data = []
+	with open(file_name, mode) as csv_file:
+		csv_reader = csv.reader(csv_file)
+		for row in csv_reader:
+			data.append(row)
+	return data
 
 def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation):
@@ -338,6 +346,49 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	return rmse_data
 	#plt.show()
 
+def calculate_average_rmse_for_every_data_point_in_all_files():
+	"""
+	Calcualte the average rmse from all the files that contains the keyword 'rmse' in the current directory.
+	returns a list containing the averaged value of all data points. 
+	"""
+	def add_data_to_averaged_rmse(rmse_series):
+		for idx in range(1, len(rmse_series)): #1 to skip the column headers
+			averaged_rmse_data[idx] += float(rmse_series[idx][1])
+	#calculate average of rmse
+	#-1 because we dont count the first and last time point
+	averaged_rmse_data = [0] * (number_of_time_points - 1) 
+	file_count = 0 #the divisor to for which we would divided every number in the calculated average
+
+	#get a list of all files in directory
+	for fl in os.listdir("."):
+		if "rmse" in fl and fl.endswith(".csv"):
+			rmse_series = get_data_from_file(str(fl)) #the data in a file
+			add_data_to_averaged_rmse(rmse_series)
+			file_count += 1
+	#divide everything by the number of files in data points
+	return [x/file_count for x in averaged_rmse_data if file_count > 0]
+
+def get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, col_headers):
+	"""
+	Returns a list with the data from time series in all sensors in the lattice with column headers.
+	"""
+	def add_readings_from_time_series_to_data(data, sensor_time_series):
+		for time in range(len(sensor_time_series)):
+			data.append([sensor_number, (time+1), sensor_time_series[time]])
+
+	data = []
+	data.append(col_headers) #add the columns headers
+
+	sensor_number = 1 #actual sensor from where the reading is taken
+	for row in range(dimension_of_lattice):
+		for col in range(dimension_of_lattice):
+			sensor_time_series = lattice_of_sensors[row][col].get_time_series()
+			add_readings_from_time_series_to_data(data, sensor_time_series)
+			sensor_number += 1
+
+	return data
+
+
 run_id = ""
 
 if len(sys.argv) >= 2:
@@ -380,76 +431,23 @@ errors = 0
 neural_net = create_neural_network(dimension_of_lattice**2)
 rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
 
-rmse_data.insert(0, ["TIME", "RMSE"])
+rmse_header = ["TIME", "RMSE"]
+rmse_data.insert(0, rmse_header)
 save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
 
 time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
-data = []
-data.append(time_series_header)
-
-sensor_number = 1
-
-for row in range(dimension_of_lattice):
-	for col in range(dimension_of_lattice):
-		sensor_time_series = lattice_of_sensors[row][col].get_time_series()
-
-		for time in range(len(sensor_time_series)):
-			data.append([sensor_number, (time+1), sensor_time_series[time]])
-
-		sensor_number += 1
-
-
+data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
 save_data_to_file(data, "time_series" + run_id + ".csv" )
-#region = neuralnet.Region(input_vector_size, target_vector_size, errors, 0)
-#previous_reading = [lattice_of_sensors[0][0].get_reading_at_time(0)]
-#actual_reading = [lattice_of_sensors[0][0].get_reading_at_time(1)]
+averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files()
 
-#region.inVecCuriosity(actual_reading, previous_reading)
+the_data_for_file = []
+the_data_for_file.append(rmse_header)
+for i in range(1, len(averaged_rmse_data)):
+	the_data_for_file.append([i, averaged_rmse_data[i]])
+save_data_to_file(the_data_for_file, "averaged_erm.csv")
 
 
 """
-merged_series = merge_series([normalized_time_series, normalized_time_series_b, 
-	normalized_time_series_c], [0, 0, 1])
-
-continous_errors = []
-drifted_data = []
-data_no_errors = gather_time_series_from_sensors(lattice_of_sensors)
-
-lattice_row_1 = lattice_of_sensors[0]
-lattice_row_2 = lattice_of_sensors[1]
-
-sensor_0 = lattice_row_1[0]
-sensor_1 = lattice_row_1[1]
-sensor_2 = lattice_row_2[1]
-
-add_erroneous_reading_to_sensor(sensor_0, probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation)
-add_erroneous_drift_towards_a_value_to_sensor(sensor_1, probability_of_erroneous_reading,
-	number_of_erroneous_points)
-add_continous_erroneous_reading_to_sensor(sensor_2, probability_of_erroneous_reading,
-	number_of_continous_erroneous_readings)
-
-erroneous_data = gather_time_series_from_sensors(lattice_of_sensors)
-
-"The rare event part"
-max_dist = 1
-min_hearable_volume = 0.5
-loudness = 0.9
-rare_event_song = generate_time_series(number_of_time_points)
-rare_event_song = normalize_to_range(rare_event_song)
-generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
- rare_event_song)
-
-rare_song2 = [50] * number_of_time_points
-normal1 = [1] * number_of_time_points
-
-height = 3
-figure = plt.figure()
-
-for sensor_group in lattice_of_sensors:
-	for sensor in sensor_group:
-		sensor.set_time_series(normal1)
-
 figure = plt.figure()
 normal_data = gather_time_series_from_sensors(lattice_of_sensors)
 axes_n = figure.add_subplot(1, 1, 1)
@@ -457,37 +455,5 @@ transposed_data = map(list, zip(*normal_data))
 print transposed_data
 axes_n.plot(transposed_data)
 axes_n.legend(range(len(transposed_data)))
-plt.show()
-
-generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, loudness,
- rare_song2)
-rare_d = gather_time_series_from_sensors(lattice_of_sensors)
-rare_ax = figure.add_subplot(height, 1, 2)
-transposed_data = map(list, zip(*rare_d))
-rare_ax.plot(transposed_data)
-
-axes_no_errors = figure.add_subplot(height, 1, 1)
-axes_no_errors.set_title("Data no errors")
-transposed_data = map(list, zip(*data_no_errors)) #to transpose the data
-axes_no_errors.plot(transposed_data)
-axes_no_errors.legend(range(0, dimension_of_lattice * dimension_of_lattice))
-
-rare_data = gather_time_series_from_sensors(lattice_of_sensors)
-axes_rare = figure.add_subplot(height, 1, 2)
-axes_rare.set_title("Rare events")
-transposed_data = map(list, zip(*rare_data))
-axes_rare.plot(transposed_data)
-axes_rare.legend(range(0, dimension_of_lattice * dimension_of_lattice))
-
-axes_rare_song = figure.add_subplot(height, 1, 3)
-axes_rare_song.set_title("Rare song")
-axes_rare_song.plot(rare_event_song)
-
-
-axes_errors = figure.add_subplot(height, 1, 2)
-axes_errors.set_title("Data with errors")
-transposed_data = map(list, zip(*erroneous_data)) #to transpose the data
-axes_errors.plot(transposed_data)
-
 plt.show()
 """
