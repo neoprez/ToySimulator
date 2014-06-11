@@ -8,8 +8,6 @@ import conx
 import sys
 import os
 
-random_generator = random.Random()
-
 def generate_time_series(number_of_time_points):
 	"This returns a list of randomly varying numbers"
 	time_series = []
@@ -285,9 +283,14 @@ def create_neural_network(vector_size):
 	expert.momentum = 0
 	expert.epsilon = 0.5
 
-   	return expert
+	return expert
 
-def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points):
+def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time):
+	"""
+	This function runs the neural network in all sensors.
+	The warm up time specifies the number of time points needed fo the neural network to adjust
+	the weights between sensors.
+	"""
 	def get_vector_of_time_series_from_all_sensors(time_point):
 		vector_of_readings = []
 
@@ -346,7 +349,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	return rmse_data
 	#plt.show()
 
-def calculate_average_rmse_for_every_data_point_in_all_files():
+def calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points):
 	"""
 	Calcualte the average rmse from all the files that contains the keyword 'rmse' in the current directory.
 	returns a list containing the averaged value of all data points. 
@@ -389,70 +392,75 @@ def get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimens
 	return data
 
 
-run_id = ""
+def main():
+	random_generator = random.Random()
+	number_of_continous_erroneous_readings = 50
+	probability_of_erroneous_reading = 0.01
+	erroneous_reading_standard_deviation = 20
+	number_of_erroneous_points = 10
+	number_of_time_points = 2000
+	input_vector_size = 1
+	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
+	errors = 0
+	warmup_time = 150 #warmup for 150 data points
+	time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
+	rmse_header = ["TIME", "RMSE"]
+	run_id = ""
 
-if len(sys.argv) >= 2:
-	run_id = str(sys.argv[1])
+	if len(sys.argv) >= 2:
+		run_id = str(sys.argv[1])
 
-number_of_continous_erroneous_readings = 50
-probability_of_erroneous_reading = 0.01
-erroneous_reading_standard_deviation = 20
-number_of_erroneous_points = 10
-number_of_time_points = 2000
+	#we are using a lattice of sensors that reads data from different
+	#songs. We combine the listening from 3 different readings.
+	#time_series = generate_time_series(number_of_time_points) #series a
+	time_series = generate_predictable_parabola_time_series(number_of_time_points)
+	#time_series = generate_predictable_sin_time_series(number_of_time_points)
+	#time_series = generate_predictable_parabola_time_series(number_of_time_points)
+	#time_series_b = generate_time_series(number_of_time_points) #series b
+	time_series_b = generate_predictable_time_series(number_of_time_points) #series b
+	#time_series_b = generate_predictable_parabola_time_series(number_of_time_points)
+	#time_series_b = generate_predictable_time_series(number_of_time_points) #series b
+	#time_series_c = generate_time_series(number_of_time_points) #series c
+	#time_series_c = generate_predictable_time_series(number_of_time_points) #series c
+	#time_series_c = generate_predictable_sin_time_series(number_of_time_points) #series c
+	time_series_c = generate_predictable_parabola_time_series(number_of_time_points, 100) #series c
+	#normalize the time series so that they fall in the same range. Our case 0 to 100
+	normalized_time_series = normalize_to_range(time_series, 1.0)
+	normalized_time_series_b = normalize_to_range(time_series_b, 1.0)
+	normalized_time_series_c = normalize_to_range(time_series_c, 1.0)
 
-#we are using a lattice of sensors that reads data from different
-#songs. We combine the listening from 3 different readings.
-#time_series = generate_time_series(number_of_time_points) #series a
-"""time_series = generate_predictable_parabola_time_series(number_of_time_points)
-#time_series = generate_predictable_sin_time_series(number_of_time_points)
-#time_series = generate_predictable_parabola_time_series(number_of_time_points)
-#time_series_b = generate_time_series(number_of_time_points) #series b
-time_series_b = generate_predictable_time_series(number_of_time_points) #series b
-#time_series_b = generate_predictable_parabola_time_series(number_of_time_points)
-#time_series_b = generate_predictable_time_series(number_of_time_points) #series b
-#time_series_c = generate_time_series(number_of_time_points) #series c
-#time_series_c = generate_predictable_time_series(number_of_time_points) #series c
-#time_series_c = generate_predictable_sin_time_series(number_of_time_points) #series c
-time_series_c = generate_predictable_parabola_time_series(number_of_time_points, 100) #series c
-#normalize the time series so that they fall in the same range. Our case 0 to 100
-normalized_time_series = normalize_to_range(time_series, 1.0)
-normalized_time_series_b = normalize_to_range(time_series_b, 1.0)
-normalized_time_series_c = normalize_to_range(time_series_c, 1.0)
+	#assigns the values to the sensor based on the location of the sensors in the lattice
+	list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
+	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 
-dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
-#assigns the values to the sensor based on the location of the sensors in the lattice
-list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
-lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
+	neural_net = create_neural_network(dimension_of_lattice**2)
+	rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time)
 
-input_vector_size = 1
-target_vector_size = 1
-errors = 0
+	rmse_data.insert(0, rmse_header)
+	save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
+	data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
+	save_data_to_file(data, "time_series" + run_id + ".csv" )
 
-neural_net = create_neural_network(dimension_of_lattice**2)
-rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
+	averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points)
 
-rmse_data.insert(0, rmse_header)
-save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
-time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
-data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
-save_data_to_file(data, "time_series" + run_id + ".csv" )"""
-averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files()
+	plt.plot(averaged_rmse_data)
+	plt.show()
 
-the_data_for_file = []
-rmse_header = ["TIME", "RMSE"]
-the_data_for_file.append(rmse_header)
-for i in range(1, len(averaged_rmse_data)):
-	the_data_for_file.append([i, averaged_rmse_data[i]])
-save_data_to_file(the_data_for_file, "averaged_erm.csv")
+	the_data_for_file = []
+	the_data_for_file.append(rmse_header)
+	for i in range(1, len(averaged_rmse_data)):
+		the_data_for_file.append([i, averaged_rmse_data[i]])
+	save_data_to_file(the_data_for_file, "averaged_erm.csv")
 
 
-"""
-figure = plt.figure()
-normal_data = gather_time_series_from_sensors(lattice_of_sensors)
-axes_n = figure.add_subplot(1, 1, 1)
-transposed_data = map(list, zip(*normal_data))
-print transposed_data
-axes_n.plot(transposed_data)
-axes_n.legend(range(len(transposed_data)))
-plt.show()
-"""
+	"""
+	figure = plt.figure()
+	normal_data = gather_time_series_from_sensors(lattice_of_sensors)
+	axes_n = figure.add_subplot(1, 1, 1)
+	transposed_data = map(list, zip(*normal_data))
+	print transposed_data
+	axes_n.plot(transposed_data)
+	axes_n.legend(range(len(transposed_data)))
+	plt.show()
+	"""
+main()
