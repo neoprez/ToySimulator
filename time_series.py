@@ -5,6 +5,7 @@ import csv
 import neuralnet
 import math
 import conx
+import sys
 
 random_generator = random.Random()
 
@@ -331,12 +332,16 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		errors_over_time.append(rmse)
 		total_error += rmse
 		rmse_data.append([idx, rmse])
-		print "Root mean se:", rmse, "i:", idx
-	rmse_data.insert(0, ["TIME", "RMSE"])
-	save_data_to_file(rmse_data, "rmse.csv")
-	#print "Total Error:", str(total_error/number_of_time_points)
+		#print "Root mean se:", rmse, "i:", idx
+	print "Total Error:", str(total_error/number_of_time_points)
 	#plt.plot(errors_over_time)
+	return rmse_data
 	#plt.show()
+
+run_id = ""
+
+if len(sys.argv) >= 2:
+	run_id = str(sys.argv[1])
 
 number_of_continous_erroneous_readings = 50
 probability_of_erroneous_reading = 0.01
@@ -373,7 +378,10 @@ target_vector_size = 1
 errors = 0
 
 neural_net = create_neural_network(dimension_of_lattice**2)
-run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
+rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
+
+rmse_data.insert(0, ["TIME", "RMSE"])
+save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
 
 time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
 data = []
@@ -391,7 +399,7 @@ for row in range(dimension_of_lattice):
 		sensor_number += 1
 
 
-save_data_to_file(data, "time_series.csv")
+save_data_to_file(data, "time_series" + run_id + ".csv" )
 #region = neuralnet.Region(input_vector_size, target_vector_size, errors, 0)
 #previous_reading = [lattice_of_sensors[0][0].get_reading_at_time(0)]
 #actual_reading = [lattice_of_sensors[0][0].get_reading_at_time(1)]
