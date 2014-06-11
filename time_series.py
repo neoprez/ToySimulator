@@ -88,8 +88,8 @@ def create_lattice_of_sensors(dimension, list_of_time_series):
 	return lattice_of_sensors
 
 
-def save_data_to_file(data, file_name):
-	with open(file_name, 'wb') as csv_file:
+def save_data_to_file(data, file_name, mode="wb"):
+	with open(file_name, mode) as csv_file:
 		csv_writer = csv.writer(csv_file)
 		for time_series in data:
 			csv_writer.writerow(time_series)
@@ -316,6 +316,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	outputs = []
 	errors_over_time = []
 	total_error = 0.0
+	rmse_data = []
 
 	for idx in range(1, number_of_time_points - 1):
 		inputs.append(get_vector_of_time_series_from_all_sensors(idx - 1))
@@ -329,8 +330,10 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		rmse = get_rmse(prediction, next_times_series)
 		errors_over_time.append(rmse)
 		total_error += rmse
-		#print "Root mean se:", rmse, "i:", idx
-
+		rmse_data.append([idx, rmse])
+		print "Root mean se:", rmse, "i:", idx
+	rmse_data.insert(0, ["TIME", "RMSE"])
+	save_data_to_file(rmse_data, "rmse.csv")
 	#print "Total Error:", str(total_error/number_of_time_points)
 	#plt.plot(errors_over_time)
 	#plt.show()
@@ -372,6 +375,23 @@ errors = 0
 neural_net = create_neural_network(dimension_of_lattice**2)
 run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
 
+time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
+data = []
+data.append(time_series_header)
+
+sensor_number = 1
+
+for row in range(dimension_of_lattice):
+	for col in range(dimension_of_lattice):
+		sensor_time_series = lattice_of_sensors[row][col].get_time_series()
+
+		for time in range(len(sensor_time_series)):
+			data.append([sensor_number, (time+1), sensor_time_series[time]])
+
+		sensor_number += 1
+
+
+save_data_to_file(data, "time_series.csv")
 #region = neuralnet.Region(input_vector_size, target_vector_size, errors, 0)
 #previous_reading = [lattice_of_sensors[0][0].get_reading_at_time(0)]
 #actual_reading = [lattice_of_sensors[0][0].get_reading_at_time(1)]
