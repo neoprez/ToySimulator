@@ -331,9 +331,9 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		total_error += rmse
 		#print "Root mean se:", rmse, "i:", idx
 
-	print "Total Error:", str(total_error/number_of_time_points)
-	plt.plot(errors_over_time)
-	plt.show()
+	#print "Total Error:", str(total_error/number_of_time_points)
+	#plt.plot(errors_over_time)
+	#plt.show()
 
 number_of_continous_erroneous_readings = 50
 probability_of_erroneous_reading = 0.01
