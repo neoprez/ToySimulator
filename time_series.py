@@ -431,16 +431,15 @@ errors = 0
 neural_net = create_neural_network(dimension_of_lattice**2)
 rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points)
 
-rmse_header = ["TIME", "RMSE"]
 rmse_data.insert(0, rmse_header)
 save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
-
 time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
 data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
 save_data_to_file(data, "time_series" + run_id + ".csv" )"""
 averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files()
 
 the_data_for_file = []
+rmse_header = ["TIME", "RMSE"]
 the_data_for_file.append(rmse_header)
 for i in range(1, len(averaged_rmse_data)):
 	the_data_for_file.append([i, averaged_rmse_data[i]])
