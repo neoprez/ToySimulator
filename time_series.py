@@ -176,7 +176,7 @@ def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_r
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_continuous_sequence_to_time_series(time_series, 
 		probability_of_erroneous_reading, number_of_continous_erroneous_readings, random_generator)
-	erroneous_reading = normalize_to_range(erroneous_reading, 1)
+	erroneous_reading = normalize_to_range(erroneous_reading, 1.0)
 	sensor.set_time_series(erroneous_reading)
 
 def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
@@ -188,7 +188,7 @@ def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading,
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
 		probability_of_erroneous_reading, erroneous_reading_standard_deviation, random_generator)
-	erroneous_reading = normalize_to_range(erroneous_reading, 1) #normalize to be between 0 and 1
+	erroneous_reading = normalize_to_range(erroneous_reading, 1.0) #normalize to be between 0 and 1
 	sensor.set_time_series(erroneous_reading)
 
 def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneous_reading, 
@@ -200,7 +200,7 @@ def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneo
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_drift_towards_a_value(time_series, 
 		probability_of_erroneous_reading, number_of_erroneous_points, random_generator)
-	erroneous_reading = normalize_to_range(erroneous_reading, 1) #normalize
+	erroneous_reading = normalize_to_range(erroneous_reading, 1.0) #normalize
 	sensor.set_time_series(erroneous_reading)
 
 def gather_time_series_from_sensors(lattice_of_sensors):
@@ -234,7 +234,7 @@ def generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_vo
 		sensor_time_series = sensor.get_time_series()
 		new_series = merge_series([rare_event_song, sensor_time_series], 
 		[loudness_of_the_area, 1])
-		new_series = normalize_to_range(new_series, 1) #normalize to 1
+		new_series = normalize_to_range(new_series, 1.0) #normalize to 1
 		sensor.set_time_series(new_series)
 
 	def add_loudness_to_sensors_at_a_distance(current_distance_from_beginning, 
@@ -336,7 +336,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			neural_net.step(input = inputs[-1], output = outputs[-1])
 
 	def get_rmse_for_particular_value(val, expected_val):
-		"Returns the rms for a particular value"
+		"Returns the root mean square for a particular value"
 		return math.sqrt(pow(val - expected_val, 2))
 
 	inputs = []
@@ -367,6 +367,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			cur_output = prediction
 			for i in range(len(next_times_series)):
 				rmse = get_rmse_for_particular_value(cur_output[i], next_times_series[i])
+				"If this sensor's reading deviates from the expected value then is an error"
 				if rmse > error_threshold:
 					if number_of_sensors_that_deviate_from_prediction < 2:
 						print "Sensor with errors is:", i, "at time:", idx
@@ -438,9 +439,9 @@ def main():
 	random_generator = random.Random()
 	number_of_continous_erroneous_readings = 500
 	probability_of_erroneous_reading = 0.001
-	erroneous_reading_standard_deviation = 20
+	erroneous_reading_standard_deviation = 0.20
 	number_of_erroneous_points = 100
-	number_of_time_points = 30000
+	number_of_time_points = 20000
 	input_vector_size = 1
 	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
 	warmup_time = 150 #warmup for 150 data points
@@ -475,7 +476,10 @@ def main():
 	list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 	"Add errors"
-	"Sensor (1,0), with errors"
+	"Sensor (0,0) with errors"
+	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
+	erroneous_reading_standard_deviation, random_generator)
+	"""Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[1][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
 	"Sensor (0,0), with errors"
