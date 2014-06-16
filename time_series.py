@@ -102,7 +102,7 @@ def get_data_from_file(file_name, mode="rb"):
 	return data
 
 def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation):
+	erroneous_reading_standard_deviation, random_generator):
 	def get_erroneous_value(value):
 		return random_generator.normalvariate(value, erroneous_reading_standard_deviation)
 
@@ -114,7 +114,7 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 	return [get_value_with_probabilistics_erroneous_value(value) for value in time_series]
 
 def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of_erroneous_reading, 
-	number_of_continous_erroneous_readings):
+	number_of_continous_erroneous_readings, random_generator):
 	"""
 	This function produces a continous sequence of erroneous readings. 
 	Ex: 34, 35,35,35, 32, 38 ...
@@ -137,7 +137,7 @@ def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of
 	return modified_time_series
 
 def add_erroneous_drift_towards_a_value(time_series, probability_of_erroneous_reading, 
-	number_of_erroneous_points):
+	number_of_erroneous_points, random_generator):
 	"""
 	This function adds erroneous drifts towards the a value.
 	The value we are using is 0.
@@ -168,7 +168,7 @@ def add_erroneous_drift_towards_a_value(time_series, probability_of_erroneous_re
 	return modified_time_series
 
 def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
-	number_of_continous_erroneous_readings):
+	number_of_continous_erroneous_readings, random_generator):
 	"""
 	This function adds a sequence erroneous readings to a single sensor time series. 
 	This function modifies the sensor's original time series.
@@ -179,25 +179,27 @@ def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_r
 	sensor.set_time_series(erroneous_reading)
 
 def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation):
+	erroneous_reading_standard_deviation, random_generator):
 	"""
 	This function adds erroneous readings to a single sensor time series. 
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
-		probability_of_erroneous_reading, erroneous_reading_standard_deviation)
+		probability_of_erroneous_reading, erroneous_reading_standard_deviation, random_generator)
+	erroneous_reading = normalize_to_range(erroneous_reading, 1) #normalize to be between 0 and 1
 	sensor.set_time_series(erroneous_reading)
 
 def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneous_reading, 
-	number_of_erroneous_points):
+	number_of_erroneous_points, random_generator):
 	"""
 	This function adds erroneous drift to a single sensor time series. 
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_drift_towards_a_value(time_series, 
-		probability_of_erroneous_reading, number_of_erroneous_points)
+		probability_of_erroneous_reading, number_of_erroneous_points, random_generator)
+	erroneous_reading = normalize_to_range(erroneous_reading, 1) #normalize
 	sensor.set_time_series(erroneous_reading)
 
 def gather_time_series_from_sensors(lattice_of_sensors):
@@ -285,7 +287,8 @@ def create_neural_network(vector_size):
 
 	return expert
 
-def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time):
+def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, 
+	warmup_time, error_threshold):
 	"""
 	This function runs the neural network in all sensors.
 	The warm up time specifies the number of time points needed fo the neural network to adjust
@@ -324,11 +327,20 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		
 		return math.sqrt(sum_of_differences)
 
+	def train_neural_net(inputs, outputs):
+		"Trains the neural network over the warm up period"
+		for i in range(1, warmup_time + 1):
+			inputs.append(get_vector_of_time_series_from_all_sensors(i - 1))
+			outputs.append(get_vector_of_time_series_from_all_sensors(i))
+			neural_net.step(input = inputs[-1], output = outputs[-1])
+
 	inputs = []
 	outputs = []
 	errors_over_time = []
 	total_error = 0.0
 	rmse_data = []
+	#train_neural_net(inputs, outputs) #train the neural network
+	flagged_data = [] #to hold the input that has errors
 
 	for idx in range(1, number_of_time_points - 1):
 		inputs.append(get_vector_of_time_series_from_all_sensors(idx - 1))
@@ -336,17 +348,22 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		neural_net.step(input = inputs[-1], output = outputs[-1])
 
 		#train_neural_net_on_all(inputs, outputs)
-		prediction = ask_neural_net(outputs[-1])
+		prediction = ask_neural_net(outputs[-1]) #checks if the prediction is ok
 
 		next_times_series = get_vector_of_time_series_from_all_sensors(idx + 1)
 		rmse = get_rmse(prediction, next_times_series)
+		"Error prediction"
+		if idx > warmup_time and rmse > error_threshold:
+			flagged_data.append(["Change at time", idx])
+
 		errors_over_time.append(rmse)
 		total_error += rmse
 		rmse_data.append([idx, rmse])
+
 		#print "Root mean se:", rmse, "i:", idx
 	print "Total Error:", str(total_error/number_of_time_points)
 	#plt.plot(errors_over_time)
-	return rmse_data
+	return rmse_data,flagged_data
 	#plt.show()
 
 def calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points):
@@ -395,14 +412,14 @@ def get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimens
 def main():
 	random_generator = random.Random()
 	number_of_continous_erroneous_readings = 50
-	probability_of_erroneous_reading = 0.01
+	probability_of_erroneous_reading = 0.001
 	erroneous_reading_standard_deviation = 20
-	number_of_erroneous_points = 10
-	number_of_time_points = 2000
+	number_of_erroneous_points = 100
+	number_of_time_points = 20000
 	input_vector_size = 1
 	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
-	errors = 0
 	warmup_time = 150 #warmup for 150 data points
+	error_threshold = 0.02
 	time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
 	rmse_header = ["TIME", "RMSE"]
 	run_id = ""
@@ -432,10 +449,17 @@ def main():
 	#assigns the values to the sensor based on the location of the sensors in the lattice
 	list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
-
+	"Add errors"
+	"Sensor (1,0), with errors"
+	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[1][0], probability_of_erroneous_reading, 
+	number_of_erroneous_points, random_generator)
+	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
+	#erroneous_reading_standard_deviation, random_generator)
+	"Neural network"
 	neural_net = create_neural_network(dimension_of_lattice**2)
-	rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time)
+	rmse_data, flagged_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
 
+	print "Number of errors:",len(flagged_data)
 	rmse_data.insert(0, rmse_header)
 	save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
 	data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
@@ -453,14 +477,14 @@ def main():
 	save_data_to_file(the_data_for_file, "averaged_erm.csv")
 
 
-	"""
+	
 	figure = plt.figure()
 	normal_data = gather_time_series_from_sensors(lattice_of_sensors)
 	axes_n = figure.add_subplot(1, 1, 1)
 	transposed_data = map(list, zip(*normal_data))
-	print transposed_data
+	#print transposed_data
 	axes_n.plot(transposed_data)
 	axes_n.legend(range(len(transposed_data)))
 	plt.show()
-	"""
+	
 main()
