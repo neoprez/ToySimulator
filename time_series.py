@@ -216,7 +216,7 @@ def gather_time_series_from_sensors(lattice_of_sensors):
 	
 
 def generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, 
-	loudness, rare_event_song):
+	loudness, rare_event_song, random_generator):
 	"""
 	This function generates a rare event that is added to the readings of the sensors 
 	in the lattice. The volume is reduces as it goes away from the initial sensor. 
@@ -234,7 +234,7 @@ def generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_vo
 		sensor_time_series = sensor.get_time_series()
 		new_series = merge_series([rare_event_song, sensor_time_series], 
 		[loudness_of_the_area, 1])
-		new_series = normalize_to_range(new_series)
+		new_series = normalize_to_range(new_series, 1) #normalize to 1
 		sensor.set_time_series(new_series)
 
 	def add_loudness_to_sensors_at_a_distance(current_distance_from_beginning, 
@@ -346,7 +346,10 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	rmse_data = []
 	#train_neural_net(inputs, outputs) #train the neural network
 	flagged_data = [] #to hold the input that has errors
-
+	sensors_reporting_erroneous_data = [] #list of sensors that are reporting wrong data
+	"To differentiate between a rare event and error I will use the number of sensors that change the readings"
+	number_of_sensors_that_deviate_from_prediction = 0
+	
 	for idx in range(1, number_of_time_points - 1):
 		inputs.append(get_vector_of_time_series_from_all_sensors(idx - 1))
 		outputs.append(get_vector_of_time_series_from_all_sensors(idx))
@@ -354,19 +357,27 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 
 		#train_neural_net_on_all(inputs, outputs)
 		prediction = ask_neural_net(outputs[-1]) #checks if the prediction is ok
-
 		next_times_series = get_vector_of_time_series_from_all_sensors(idx + 1)
 		rmse = get_rmse(prediction, next_times_series)
-
+		"Rare event"
 		"Error prediction"
 		if idx > warmup_time and rmse > error_threshold:
 			"Flag the input that is giving the wrong value"
-			"loop through all the data values and check which one differes the most from the expected value"
-			cur_output = outputs[-1]
+			"loop through all the data values and check which one differs the most from the expected value"
+			cur_output = prediction
 			for i in range(len(next_times_series)):
 				rmse = get_rmse_for_particular_value(cur_output[i], next_times_series[i])
 				if rmse > error_threshold:
-					print "Sensor with errors is:", i, "at time:", idx
+					if number_of_sensors_that_deviate_from_prediction < 2:
+						print "Sensor with errors is:", i, "at time:", idx
+						if i not in sensors_reporting_erroneous_data:
+							sensors_reporting_erroneous_data.append(i)
+							number_of_sensors_that_deviate_from_prediction += 1
+					else:
+						if i not in sensors_reporting_erroneous_data:
+							sensors_reporting_erroneous_data.append(i)
+							number_of_sensors_that_deviate_from_prediction += 1
+						print "Erroneous event\n", "Sensors reporting erroneous data:", number_of_sensors_that_deviate_from_prediction
 
 			flagged_data.append(["Change at time", idx])
 
@@ -425,11 +436,11 @@ def get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimens
 
 def main():
 	random_generator = random.Random()
-	number_of_continous_erroneous_readings = 200
+	number_of_continous_erroneous_readings = 500
 	probability_of_erroneous_reading = 0.001
 	erroneous_reading_standard_deviation = 20
 	number_of_erroneous_points = 100
-	number_of_time_points = 20000
+	number_of_time_points = 30000
 	input_vector_size = 1
 	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
 	warmup_time = 150 #warmup for 150 data points
@@ -454,7 +465,7 @@ def main():
 	#time_series_c = generate_time_series(number_of_time_points) #series c
 	#time_series_c = generate_predictable_time_series(number_of_time_points) #series c
 	#time_series_c = generate_predictable_sin_time_series(number_of_time_points) #series c
-	time_series_c = generate_predictable_parabola_time_series(number_of_time_points, 100) #series c
+	time_series_c = generate_predictable_parabola_time_series(number_of_time_points, 100) #series c, right shift by 100
 	#normalize the time series so that they fall in the same range. Our case 0 to 100
 	normalized_time_series = normalize_to_range(time_series, 1.0)
 	normalized_time_series_b = normalize_to_range(time_series_b, 1.0)
@@ -473,6 +484,14 @@ def main():
 	"Sensor (2,2) with errors"
 	add_continous_erroneous_reading_to_sensor(lattice_of_sensors[2][2], probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, random_generator)
+	
+	"RARE EVENT at (3,3)"""
+	max_dist = 2
+	min_hearable_volume = 0.01 #volume at which the farthest sensor will listen to the rare son
+	rare_event_song = generate_predictable_sin_time_series(number_of_time_points)
+	loudness = 0.2 #volume of reading at which the principal sensor is going to listen the rare song
+	#generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, 
+	#loudness, rare_event_song, random_generator) #picks a random sensor
 	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
 	#erroneous_reading_standard_deviation, random_generator)
 	"Neural network"
@@ -504,7 +523,7 @@ def main():
 	transposed_data = map(list, zip(*normal_data))
 	#print transposed_data
 	axes_n.plot(transposed_data)
-	axes_n.legend(range(len(transposed_data)))
+	#axes_n.legend(range(len(transposed_data)))
 	plt.show()
 	
 main()
