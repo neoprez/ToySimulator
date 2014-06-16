@@ -175,7 +175,8 @@ def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_r
 	"""
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_continuous_sequence_to_time_series(time_series, 
-		probability_of_erroneous_reading, number_of_continous_erroneous_readings)
+		probability_of_erroneous_reading, number_of_continous_erroneous_readings, random_generator)
+	erroneous_reading = normalize_to_range(erroneous_reading, 1)
 	sensor.set_time_series(erroneous_reading)
 
 def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
@@ -365,7 +366,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			for i in range(len(next_times_series)):
 				rmse = get_rmse_for_particular_value(cur_output[i], next_times_series[i])
 				if rmse > error_threshold:
-					print "Sensor with errors is:", i
+					print "Sensor with errors is:", i, "at time:", idx
 
 			flagged_data.append(["Change at time", idx])
 
@@ -424,7 +425,7 @@ def get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimens
 
 def main():
 	random_generator = random.Random()
-	number_of_continous_erroneous_readings = 50
+	number_of_continous_erroneous_readings = 200
 	probability_of_erroneous_reading = 0.001
 	erroneous_reading_standard_deviation = 20
 	number_of_erroneous_points = 100
@@ -469,6 +470,9 @@ def main():
 	"Sensor (0,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
+	"Sensor (2,2) with errors"
+	add_continous_erroneous_reading_to_sensor(lattice_of_sensors[2][2], probability_of_erroneous_reading, 
+	number_of_continous_erroneous_readings, random_generator)
 	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
 	#erroneous_reading_standard_deviation, random_generator)
 	"Neural network"
