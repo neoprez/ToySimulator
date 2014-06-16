@@ -334,6 +334,10 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			outputs.append(get_vector_of_time_series_from_all_sensors(i))
 			neural_net.step(input = inputs[-1], output = outputs[-1])
 
+	def get_rmse_for_particular_value(val, expected_val):
+		"Returns the rms for a particular value"
+		return math.sqrt(pow(val - expected_val, 2))
+
 	inputs = []
 	outputs = []
 	errors_over_time = []
@@ -352,8 +356,17 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 
 		next_times_series = get_vector_of_time_series_from_all_sensors(idx + 1)
 		rmse = get_rmse(prediction, next_times_series)
+
 		"Error prediction"
 		if idx > warmup_time and rmse > error_threshold:
+			"Flag the input that is giving the wrong value"
+			"loop through all the data values and check which one differes the most from the expected value"
+			cur_output = outputs[-1]
+			for i in range(len(next_times_series)):
+				rmse = get_rmse_for_particular_value(cur_output[i], next_times_series[i])
+				if rmse > error_threshold:
+					print "Sensor with errors is:", i
+
 			flagged_data.append(["Change at time", idx])
 
 		errors_over_time.append(rmse)
@@ -452,6 +465,9 @@ def main():
 	"Add errors"
 	"Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[1][0], probability_of_erroneous_reading, 
+	number_of_erroneous_points, random_generator)
+	"Sensor (0,0), with errors"
+	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
 	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
 	#erroneous_reading_standard_deviation, random_generator)
