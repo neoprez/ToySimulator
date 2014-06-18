@@ -25,15 +25,19 @@ class LinkedList(object):
 		self.root = None
 
 	def insert_last(self, val):
+		previous = None
+
 		if self.root == None:
 			self.root = Node(val)
 		else:
 			current = self.root
 
-			while current.next is not  None:
+			while current.next is not None:
 				current = current.next
 
-			current.next = Node(val)
+			newNode = Node(val)
+			newNode.previous = current
+			current.next = newNode
 
 	def insert_first(self, val):
 		tmpNode = self.root
@@ -76,14 +80,13 @@ class LinkedList(object):
 			current = current.next
 
 		return s
-"""
-l = LinkedList()
+
+"""l = LinkedList()
 
 for i in range(100):
 	l.insert_first(i)
 
 print l
 
-node = l.get_node_at(50)
-print node.val
-"""
+val = l.get_value_at(50)
+print val"""
