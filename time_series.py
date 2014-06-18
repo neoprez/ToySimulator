@@ -7,6 +7,7 @@ import math
 import conx
 import sys
 import os
+import linked_list
 
 def generate_time_series(number_of_time_points):
 	"This returns a list of randomly varying numbers"
@@ -339,53 +340,99 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		"Returns the root mean square for a particular value"
 		return math.sqrt(pow(val - expected_val, 2))
 
-	inputs = []
-	outputs = []
+	def is_error(time, rmse):
+		if time > warmup_time and rmse > error_threshold:
+			return True
+		
+		return False
+
+	def is_rare_event(prediction, next_times_series, error_tracker, time):
+		"Checks if more than a single sensor deviates from its prediction"
+		number_of_sensors_that_deviate_from_prediction = 0
+
+		for i in range(len(next_times_series)):
+			#error_tracker[i].insert(0) #flag to 0, no deviation from prediction
+			if get_rmse_for_particular_value(prediction[i], next_times_series[i]) > error_threshold:
+				number_of_sensors_that_deviate_from_prediction += 1
+			#	error_tracker[i].insert(1) #flag to 1, deviation from prediction"
+
+		if time > warmup_time and number_of_sensors_that_deviate_from_prediction > 1:
+			return True
+
+		return False
+
+	#inputs = []
+	#outputs = []
 	errors_over_time = []
 	total_error = 0.0
 	rmse_data = []
 	#train_neural_net(inputs, outputs) #train the neural network
 	flagged_data = [] #to hold the input that has errors
 	sensors_reporting_erroneous_data = [] #list of sensors that are reporting wrong data
+
 	"To differentiate between a rare event and error I will use the number of sensors that change the readings"
-	number_of_sensors_that_deviate_from_prediction = 0
-	
-	for idx in range(1, number_of_time_points - 1):
-		inputs.append(get_vector_of_time_series_from_all_sensors(idx - 1))
-		outputs.append(get_vector_of_time_series_from_all_sensors(idx))
-		neural_net.step(input = inputs[-1], output = outputs[-1])
+	#number_of_sensors_that_deviate_from_prediction = 0
+	list_of_predicted_values_to_change_for_errors = []
+	#to keep track of the readings in each of the sensors.
+	#if a sensor reports an error a flag is raised. If there is consistency in the flag among all the sensors
+	#then we look at the previous readings of the sensors, if the previous reading reported a flag then we
+	#consider it to be either an error or a rare event
+	error_tracker = [linked_list.LinkedList()] * (len(lattice_of_sensors)**2)
+
+	for time in range(1, number_of_time_points - 1):
+		inputs = get_vector_of_time_series_from_all_sensors(time - 1) #previous readings
+		outputs = get_vector_of_time_series_from_all_sensors(time) #actual readings
+
+		#check if the list is empty
+		if list_of_predicted_values_to_change_for_errors:
+			"Changes the outputs with the predictions so that errors are covered"
+			#for points in list_of_predicted_values_to_change_for_errors:
+				#outputs[points[0]] = points[1] #sets the sensors with erroneous value to predicted value
+
+			#print list_of_predicted_values_to_change_for_errors
+			del list_of_predicted_values_to_change_for_errors[:] #empty the list
+		"Train the neural network based on the previous(input) reading and the actual(output) reading"
+		neural_net.step(input = inputs, output = outputs)
 
 		#train_neural_net_on_all(inputs, outputs)
-		prediction = ask_neural_net(outputs[-1]) #checks if the prediction is ok
-		next_times_series = get_vector_of_time_series_from_all_sensors(idx + 1)
+		prediction = ask_neural_net(outputs) #checks if the prediction is ok
+		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
 		rmse = get_rmse(prediction, next_times_series)
 		"Rare event"
+		if is_rare_event(prediction, next_times_series, error_tracker, time):
+			print "Rare at time:", time
+
 		"Error prediction"
-		if idx > warmup_time and rmse > error_threshold:
+		if is_error(time, rmse):
 			"Flag the input that is giving the wrong value"
 			"loop through all the data values and check which one differs the most from the expected value"
-			cur_output = prediction
+			#cur_prediction = prediction
 			for i in range(len(next_times_series)):
-				rmse = get_rmse_for_particular_value(cur_output[i], next_times_series[i])
+				rmse = get_rmse_for_particular_value(prediction[i], next_times_series[i])
 				"If this sensor's reading deviates from the expected value then is an error"
 				if rmse > error_threshold:
-					if number_of_sensors_that_deviate_from_prediction < 2:
-						print "Sensor with errors is:", i, "at time:", idx
-						if i not in sensors_reporting_erroneous_data:
-							sensors_reporting_erroneous_data.append(i)
-							number_of_sensors_that_deviate_from_prediction += 1
-					else:
-						if i not in sensors_reporting_erroneous_data:
-							sensors_reporting_erroneous_data.append(i)
-							number_of_sensors_that_deviate_from_prediction += 1
-						print "Erroneous event\n", "Sensors reporting erroneous data:", number_of_sensors_that_deviate_from_prediction
+					#if number_of_sensors_that_deviate_from_prediction < 2:
+				#	print "Sensor with errors is:", i, "at time:", idx
+				#	print "Number of sensors with errors:", number_of_sensors_that_deviate_from_prediction
+					"Adds the index to be change in the next iteration and the value to be substituted with"
+					list_of_predicted_values_to_change_for_errors.append([i, prediction[i]])
+					if i not in sensors_reporting_erroneous_data:
+						sensors_reporting_erroneous_data.append(i)
+				#		number_of_sensors_that_deviate_from_prediction += 1
+					#else:
+					#	if i not in sensors_reporting_erroneous_data:
+					#		sensors_reporting_erroneous_data.append(i)
+					#		number_of_sensors_that_deviate_from_prediction += 1
+					#	print "Erroneous event\n", "Sensors reporting erroneous data:", number_of_sensors_that_deviate_from_prediction
 
-			flagged_data.append(["Change at time", idx])
+			flagged_data.append(["Change at time", time])
 
 		errors_over_time.append(rmse)
 		total_error += rmse
-		rmse_data.append([idx, rmse])
+		rmse_data.append([time, rmse])
 
+	#for l in range(len(error_tracker)):
+	#	print error_tracker[l]
 		#print "Root mean se:", rmse, "i:", idx
 	print "Total Error:", str(total_error/number_of_time_points)
 	#plt.plot(errors_over_time)
@@ -440,7 +487,7 @@ def main():
 	number_of_continous_erroneous_readings = 500
 	probability_of_erroneous_reading = 0.001
 	erroneous_reading_standard_deviation = 0.20
-	number_of_erroneous_points = 100
+	number_of_erroneous_points = 500
 	number_of_time_points = 20000
 	input_vector_size = 1
 	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
@@ -479,10 +526,10 @@ def main():
 	"Sensor (0,0) with errors"
 	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, random_generator)
-	"""Sensor (1,0), with errors"
+	"Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[1][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
-	"Sensor (0,0), with errors"
+	"""Sensor (0,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
 	"Sensor (2,2) with errors"
@@ -503,22 +550,23 @@ def main():
 	rmse_data, flagged_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
 
 	print "Number of errors:",len(flagged_data)
+	
 	rmse_data.insert(0, rmse_header)
 	save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
-	data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
-	save_data_to_file(data, "time_series" + run_id + ".csv" )
-
+	#data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
+	#save_data_to_file(data, "time_series" + run_id + ".csv" )
+	
 	averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points)
 
 	plt.plot(averaged_rmse_data)
 	plt.show()
-
+	"""
 	the_data_for_file = []
 	the_data_for_file.append(rmse_header)
 	for i in range(1, len(averaged_rmse_data)):
 		the_data_for_file.append([i, averaged_rmse_data[i]])
 	save_data_to_file(the_data_for_file, "averaged_erm.csv")
-
+	"""
 
 	
 	figure = plt.figure()
