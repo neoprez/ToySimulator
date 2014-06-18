@@ -266,13 +266,97 @@ def generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_vo
 
 	#pick a random sensor
 	row_of_first_ocurrence, col_of_first_ocurrence = get_a_random_sensor_index()
-	print row_of_first_ocurrence, col_of_first_ocurrence
+	print row_of_first_ocurrence, col_of_first_ocurrence #print sensor where the rare event starts
 	sensor = lattice_of_sensors[row_of_first_ocurrence][col_of_first_ocurrence]
 	change_sensor_time_series_to_rare_series(sensor, loudness)
 
 	for current_distance in range(1, max_dist + 1):
 		add_loudness_to_sensors_at_a_distance(current_distance, row_of_first_ocurrence, 
 			col_of_first_ocurrence)
+
+def generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
+	loudness, rare_event_song, random_generator):
+	"This function adds a rare event to the lattice of sensors, for a random period of time"
+	def get_a_random_sensor_index():
+		"This function returns a random index to pick a sensor from lattice"
+		start_index = 0
+		end_index = len(lattice_of_sensors) - 1
+
+		return random_generator.randint(start_index, end_index), \
+		random_generator.randint(start_index, end_index)
+
+	def get_random_period_of_time(max_time):
+		"""
+		Gets the start and end index that will be used to add the rare song to lattice
+		max_time: the maximum amount of time that event can occur
+		returns the start index and end index
+		"""
+		a = random_generator.randint(0, max_time) #from 0 to maximum time
+		b = random_generator.randint(a, max_time) #from time a to maximum time
+		return a, b
+
+	def crop_time_series(series, start_index, end_index):
+		cropped_series = []
+
+		for i in range(start_index, end_index + 1):
+			cropped_series.append(series[i])
+
+		return cropped_series
+
+	def change_sensor_time_series_to_rare_series(sensor, loudness_of_the_area, start_index, end_index):
+		sensor_time_series = sensor.get_time_series()
+
+		cropped_sensor_time_series = crop_time_series(sensor_time_series, start_index, end_index)
+		cropped_rare_event_song = crop_time_series(rare_event_song, start_index, end_index)
+
+		merged_series = merge_series([cropped_rare_event_song, cropped_sensor_time_series], 
+		[loudness_of_the_area, 1])
+
+		new_series = sensor_time_series[:]
+		#to append previous valus to the new time series
+		for i in range(len(merged_series)):
+			new_series[start_index + i] = merged_series[i]
+
+		new_series = normalize_to_range(new_series, 1.0) #normalize to 1
+		sensor.set_time_series(new_series)
+
+	def add_loudness_to_sensors_at_a_distance(current_distance_from_beginning, 
+		row_of_first_ocurrence, col_of_first_ocurrence, start_index, end_index):
+		"""
+		This function adds loudnes to sensors in an area with respect to the distance from 
+		first occurrence
+		"""
+		start_row = max(0, row_of_first_ocurrence - current_distance_from_beginning)
+		start_col = max(0, col_of_first_ocurrence - current_distance_from_beginning)
+		end_row = min(row_of_first_ocurrence + current_distance_from_beginning + 1, 
+			len(lattice_of_sensors))
+		end_col = min(col_of_first_ocurrence + current_distance_from_beginning + 1, 
+		 	len(lattice_of_sensors))
+
+		loudness_of_the_area = loudness - ((loudness - min_hearable_volume)/max_dist) * \
+		  current_distance_from_beginning
+
+		for r in range(start_row, end_row):
+			for c in range(start_col, end_col):
+				row_distance = abs(r - row_of_first_ocurrence)
+				col_distance = abs(c - col_of_first_ocurrence)
+				distance = max(row_distance, col_distance)
+		 		
+		 		if distance == current_distance_from_beginning:
+		 			sensor = lattice_of_sensors[r][c]
+		 			change_sensor_time_series_to_rare_series(sensor, loudness_of_the_area, start_index, end_index)
+
+	#pick a random sensor
+	row_of_first_ocurrence, col_of_first_ocurrence = get_a_random_sensor_index()
+	#pick a random period of time
+	start_index, end_index = get_random_period_of_time(len(rare_event_song))
+	print row_of_first_ocurrence, col_of_first_ocurrence #print sensor where the rare event starts
+	sensor = lattice_of_sensors[row_of_first_ocurrence][col_of_first_ocurrence]
+	change_sensor_time_series_to_rare_series(sensor, loudness, start_index, end_index)
+
+	for current_distance in range(1, max_dist + 1):
+		add_loudness_to_sensors_at_a_distance(current_distance, row_of_first_ocurrence, 
+			col_of_first_ocurrence, start_index, end_index)
 
 def create_neural_network(vector_size):
 	"Creates a neural network"
@@ -347,42 +431,42 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		return False
 
 	def is_rare_event(prediction, next_times_series, error_tracker, sensors_reporting_erroneous_data,time):
-		"Checks if more than a single sensor deviates from its prediction"
+		"Checks if more than a single sensor deviates from its prediction at a time point"
 		number_of_sensors_that_deviate_from_prediction = 0
-		indices_of_sensors_that_deviate_from_prediction = []
 
 		for i in range(len(next_times_series)):
 			"Keep track of erroneous readings in each sensor"
 			error_tracker[i].insert_first(0) #flag to 0, no deviation from prediction
-			if get_rmse_for_particular_value(prediction[i], next_times_series[i]) > error_threshold:
+			rmse = get_rmse_for_particular_value(prediction[i], next_times_series[i])
+			if is_error(time, rmse):
 				error_tracker[i].insert_first(1) #flag to 1, deviation from prediction"
 				number_of_sensors_that_deviate_from_prediction += 1
-				indices_of_sensors_that_deviate_from_prediction.append(i)
+				sensors_reporting_erroneous_data.append(i) if i not in sensors_reporting_erroneous_data else 0
 
-		if time > warmup_time :
-			for sensor_index in indices_of_sensors_that_deviate_from_prediction:
-				"Look at the flags of the previous readings"
-				flags_list = error_tracker[sensor_index]
-				length_of_error = 0
-				cur_flag_index = 0
-				node = flags_list.get_node_at(cur_flag_index)
-				
-				while node is not None:
-					if node.val == 1:
-						length_of_error += 1
-					else:
-						break
-					cur_flag_index += 1
-					node = flags_list.get_node_at(cur_flag_index)
-
-				if length_of_error > 1:
-					print "Is rare event"
-				else:
-					print "Is error"
-
-			return False
-
+		if time > warmup_time and number_of_sensors_that_deviate_from_prediction > 1:
+			return True
 		return False
+
+	def check_history_of_erroneous_sensors(error_tracker, sensors_reporting_erroneous_data):
+		for sensor_index in sensors_reporting_erroneous_data:
+			"Look at the flags of the previous readings"
+			flags_list = error_tracker[sensor_index]
+			length_of_error = 0
+			cur_flag_index = 0
+			node = flags_list.get_node_at(cur_flag_index)
+			
+			while node is not None:
+				if node.val == 1: 
+					length_of_error += 1
+				else:
+					break
+				cur_flag_index += 1
+				node = flags_list.get_node_at(cur_flag_index)
+
+			if length_of_error > 1:
+				print "Is rare event"
+			else:
+				print "Is error"
 
 	errors_over_time = []
 	total_error = 0.0
@@ -391,6 +475,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	sensors_reporting_erroneous_data = [] #list of sensors that are reporting wrong data
 	list_of_predicted_values_to_change_for_errors = []
 	error_tracker = [linked_list.LinkedList()] * (len(lattice_of_sensors)**2)
+	time_since_previous_error = 0
 
 	"To differentiate between a rare event and error I will use the number of sensors that change the readings"
 	#number_of_sensors_that_deviate_from_prediction = 0
@@ -416,12 +501,12 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		prediction = ask_neural_net(outputs) #checks if the prediction is ok
 		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
 		rmse = get_rmse(prediction, next_times_series)
-		"Rare event"
+		"Rare event" 
 		if is_rare_event(prediction, next_times_series, error_tracker, sensors_reporting_erroneous_data, time):
 			print "Rare at time:", time
 
 		"Error prediction"
-		if is_error(time, rmse):
+		if len(sensors_reporting_erroneous_data) >= 1:
 			"Flag the input that is giving the wrong value"
 			"loop through all the data values and check which one differs the most from the expected value"
 			#cur_prediction = prediction
@@ -541,12 +626,12 @@ def main():
 	#assigns the values to the sensor based on the location of the sensors in the lattice
 	list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
-	"Add errors"
-	"""Sensor (0,0) with errors"
+	"""Add errors"
+	"Sensor (0,0) with errors"
 	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, random_generator)
 	"Sensor (1,0), with errors"
-	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[1][0], probability_of_erroneous_reading, 
+	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
 	"Sensor (0,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
@@ -557,11 +642,13 @@ def main():
 	
 	"RARE EVENT at (3,3)"""
 	max_dist = 2
-	min_hearable_volume = 0.01 #volume at which the farthest sensor will listen to the rare son
+	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
 	rare_event_song = generate_predictable_sin_time_series(number_of_time_points)
-	loudness = 0.09 #volume of reading at which the principal sensor is going to listen the rare song
-	generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, 
-	loudness, rare_event_song, random_generator) #picks a random sensor
+	loudness = 0.9 #volume of reading at which the principal sensor is going to listen the rare song
+	#generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, 
+	#loudness, rare_event_song, random_generator) #picks a random sensor
+	generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
+	loudness, rare_event_song, random_generator)
 	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
 	#erroneous_reading_standard_deviation, random_generator)
 	"Neural network"
