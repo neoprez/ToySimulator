@@ -495,7 +495,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	list_of_predicted_values_to_change_for_errors = []
 	error_tracker = [linked_list.LinkedList()] * (len(lattice_of_sensors)**2)
 	time_since_previous_error = 0
-	history = []
+	history_of_errors = []
 
 	"To differentiate between a rare event and error I will use the number of sensors that change the readings"
 	#number_of_sensors_that_deviate_from_prediction = 0
@@ -507,23 +507,15 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		inputs = get_vector_of_time_series_from_all_sensors(time - 1) #previous readings
 		outputs = get_vector_of_time_series_from_all_sensors(time) #actual readings
 
-		if history: #there is a sensor with history, then use that prediction to train the neural net
-			print history
-			del history[:]
-
-		neural_net.step(input = inputs, output = outputs)
-
-		prediction = ask_neural_net(outputs) #checks if the prediction is ok
-		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
-		rmse = get_rmse(prediction, next_times_series)
-		
 		if time > warmup_time: #run after the warm up period
+			prediction = ask_neural_net(outputs) #checks if the prediction is ok
+			next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
+			rmse = get_rmse(prediction, next_times_series)
 			#run only if a sensor deviates from prediction
 			if does_a_sensor_deviates_from_prediction(prediction, next_times_series):
 				#get how many sensors deviate from prediciotn
 				sensors_that_deviate_from_prediction = get_sensors_that_deviate_from_prediction(prediction, next_times_series)
 				number_of_sensors_that_deviate_from_prediction = len(sensors_that_deviate_from_prediction)
-				
 				#if more than one sensor is reporting erroneous data, assume is a rare event at first
 				"Rare event prediction" 
 				if number_of_sensors_that_deviate_from_prediction > 1:
@@ -532,10 +524,19 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				else: #if it is not more than one, assume is an error and flagit
 					"Error prediction"
 					sensor_id = sensors_that_deviate_from_prediction[0] #get the id of the sensor that is reporting erroneous data
-					history.append([sensor_id, prediction[sensor_id], next_times_series[sensor_id]]) #keep the prediction
-					
+					#outputs[sensor_id] = prediction[sensor_id]
+
+					print "error"
 					errors_over_time.append(rmse)
 					total_error += rmse
+
+		neural_net.step(input = inputs, output = outputs)
+		
+		if time <= warmup_time:
+			prediction = ask_neural_net(outputs) #checks if the prediction is ok
+		
+		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
+		rmse = get_rmse(prediction, next_times_series)
 
 		rmse_data.append([time, rmse])
 
@@ -628,8 +629,8 @@ def main():
 	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 	"Add errors"
 	"Sensor (0,0) with errors"
-	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation, random_generator)
+	#add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
+	#erroneous_reading_standard_deviation, random_generator)
 	"""Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
