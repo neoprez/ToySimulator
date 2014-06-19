@@ -424,11 +424,31 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		"Returns the root mean square for a particular value"
 		return math.sqrt(pow(val - expected_val, 2))
 
-	def is_error(time, rmse):
-		if time > warmup_time and rmse > error_threshold:
+	def is_error(rmse):
+		if rmse > error_threshold:
 			return True
 		
 		return False
+
+	def does_a_sensor_deviates_from_prediction(prediction, next_times_series):
+		for i in range(len(next_times_series)):
+			rmse = get_rmse_for_particular_value(prediction[i], next_times_series[i])
+			if is_error(rmse):
+				return True
+
+		return False
+
+	def does_deviates_from_prediction(prediction, observed_value):
+		return is_error(get_rmse_for_particular_value(prediction, observed_value))
+
+	def get_sensors_that_deviate_from_prediction(prediction, next_times_series):
+		sensors_reporting_erroneous_data = []
+
+		for i in range(len(next_times_series)):
+			if does_deviates_from_prediction(prediction[i], next_times_series[i]):
+				sensors_reporting_erroneous_data.append(i) if i not in sensors_reporting_erroneous_data else 0
+
+		return sensors_reporting_erroneous_data
 
 	def is_rare_event(prediction, next_times_series, error_tracker, sensors_reporting_erroneous_data,time):
 		"Checks if more than a single sensor deviates from its prediction at a time point"
@@ -438,12 +458,12 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			"Keep track of erroneous readings in each sensor"
 			error_tracker[i].insert_first(0) #flag to 0, no deviation from prediction
 			rmse = get_rmse_for_particular_value(prediction[i], next_times_series[i])
-			if is_error(time, rmse):
+			if is_error(rmse):
 				error_tracker[i].insert_first(1) #flag to 1, deviation from prediction"
 				number_of_sensors_that_deviate_from_prediction += 1
 				sensors_reporting_erroneous_data.append(i) if i not in sensors_reporting_erroneous_data else 0
 
-		if time > warmup_time and number_of_sensors_that_deviate_from_prediction > 1:
+		if number_of_sensors_that_deviate_from_prediction > 1:
 			return True
 		return False
 
@@ -471,11 +491,11 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	errors_over_time = []
 	total_error = 0.0
 	rmse_data = []
-	flagged_data = [] #to hold the input that has errors
 	sensors_reporting_erroneous_data = [] #list of sensors that are reporting wrong data
 	list_of_predicted_values_to_change_for_errors = []
 	error_tracker = [linked_list.LinkedList()] * (len(lattice_of_sensors)**2)
 	time_since_previous_error = 0
+	history = []
 
 	"To differentiate between a rare event and error I will use the number of sensors that change the readings"
 	#number_of_sensors_that_deviate_from_prediction = 0
@@ -486,62 +506,42 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	for time in range(1, number_of_time_points - 1):
 		inputs = get_vector_of_time_series_from_all_sensors(time - 1) #previous readings
 		outputs = get_vector_of_time_series_from_all_sensors(time) #actual readings
-		
-		#check if the list is empty
-		"""if list_of_predicted_values_to_change_for_errors:
-			"Changes the outputs with the predictions so that errors are covered"
-			#for points in list_of_predicted_values_to_change_for_errors:
-				#outputs[points[0]] = points[1] #sets the sensors with erroneous value to predicted value
-			#print list_of_predicted_values_to_change_for_errors
-			del list_of_predicted_values_to_change_for_errors[:] #empty the list
-		"""
-		"Train the neural network based on the previous(input) reading and the actual(output) reading"
+
+		if history: #there is a sensor with history, then use that prediction to train the neural net
+			print history
+			del history[:]
+
 		neural_net.step(input = inputs, output = outputs)
 
 		prediction = ask_neural_net(outputs) #checks if the prediction is ok
 		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
 		rmse = get_rmse(prediction, next_times_series)
-		"Rare event" 
-		if is_rare_event(prediction, next_times_series, error_tracker, sensors_reporting_erroneous_data, time):
-			print "Rare at time:", time
+		
+		if time > warmup_time: #run after the warm up period
+			#run only if a sensor deviates from prediction
+			if does_a_sensor_deviates_from_prediction(prediction, next_times_series):
+				#get how many sensors deviate from prediciotn
+				sensors_that_deviate_from_prediction = get_sensors_that_deviate_from_prediction(prediction, next_times_series)
+				number_of_sensors_that_deviate_from_prediction = len(sensors_that_deviate_from_prediction)
+				
+				#if more than one sensor is reporting erroneous data, assume is a rare event at first
+				"Rare event prediction" 
+				if number_of_sensors_that_deviate_from_prediction > 1:
+					if is_rare_event(prediction, next_times_series, error_tracker, sensors_reporting_erroneous_data, time):
+						print "Rare at time:", time
+				else: #if it is not more than one, assume is an error and flagit
+					"Error prediction"
+					sensor_id = sensors_that_deviate_from_prediction[0] #get the id of the sensor that is reporting erroneous data
+					history.append([sensor_id, prediction[sensor_id], next_times_series[sensor_id]]) #keep the prediction
+					
+					errors_over_time.append(rmse)
+					total_error += rmse
 
-		"Error prediction"
-		if len(sensors_reporting_erroneous_data) >= 1:
-			"Flag the input that is giving the wrong value"
-			"loop through all the data values and check which one differs the most from the expected value"
-			#cur_prediction = prediction
-			for i in range(len(next_times_series)):
-				rmse = get_rmse_for_particular_value(prediction[i], next_times_series[i])
-				"If this sensor's reading deviates from the expected value then is an error"
-				if rmse > error_threshold:
-					#if number_of_sensors_that_deviate_from_prediction < 2:
-				#	print "Sensor with errors is:", i, "at time:", idx
-				#	print "Number of sensors with errors:", number_of_sensors_that_deviate_from_prediction
-					"Adds the index to be change in the next iteration and the value to be substituted with"
-					list_of_predicted_values_to_change_for_errors.append([i, prediction[i]])
-					#if i not in sensors_reporting_erroneous_data:
-					#	sensors_reporting_erroneous_data.append(i)
-				#		number_of_sensors_that_deviate_from_prediction += 1
-					#else:
-					#	if i not in sensors_reporting_erroneous_data:
-					#		sensors_reporting_erroneous_data.append(i)
-					#		number_of_sensors_that_deviate_from_prediction += 1
-					#	print "Erroneous event\n", "Sensors reporting erroneous data:", number_of_sensors_that_deviate_from_prediction
-
-			flagged_data.append(["Change at time", time])
-
-		errors_over_time.append(rmse)
-		total_error += rmse
 		rmse_data.append([time, rmse])
 
 	print sensors_reporting_erroneous_data
-	#for l in range(len(error_tracker)):
-	#	print error_tracker[l]
-	#	print
 	print "Total Error:", str(total_error/number_of_time_points)
-	#plt.plot(errors_over_time)
-	return rmse_data,flagged_data
-	#plt.show()
+	return rmse_data
 
 def calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points):
 	"""
@@ -626,11 +626,11 @@ def main():
 	#assigns the values to the sensor based on the location of the sensors in the lattice
 	list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
-	"""Add errors"
+	"Add errors"
 	"Sensor (0,0) with errors"
 	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, random_generator)
-	"Sensor (1,0), with errors"
+	"""Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
 	"Sensor (0,0), with errors"
@@ -647,16 +647,14 @@ def main():
 	loudness = 0.9 #volume of reading at which the principal sensor is going to listen the rare song
 	#generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, 
 	#loudness, rare_event_song, random_generator) #picks a random sensor
-	generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
-	loudness, rare_event_song, random_generator)
+	#generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
+	#loudness, rare_event_song, random_generator)
 	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
 	#erroneous_reading_standard_deviation, random_generator)
 	"Neural network"
 	neural_net = create_neural_network(dimension_of_lattice**2)
-	rmse_data, flagged_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
+	rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
 
-	print "Number of errors:",len(flagged_data)
-	
 	rmse_data.insert(0, rmse_header)
 	save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
 	#data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
