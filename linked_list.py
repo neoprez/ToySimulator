@@ -23,9 +23,11 @@ class LinkedList(object):
 
 	def __init__(self):
 		self.root = None
+		self.numb_nodes = 0
 
 	def insert_last(self, val):
 		previous = None
+		self.numb_nodes += 1
 
 		if self.root == None:
 			self.root = Node(val)
@@ -45,6 +47,7 @@ class LinkedList(object):
 		newNode = Node(val)
 		newNode.next = tmpNode
 		self.root = newNode
+		self.numb_nodes += 1
 
 	def get_last(self):
 		current = self.root
@@ -69,6 +72,9 @@ class LinkedList(object):
 				idx += 1
 
 			return current
+
+	def get_node_count(self):
+		return self.numb_nodes
 
 	def __str__(self):
 		s = ""
