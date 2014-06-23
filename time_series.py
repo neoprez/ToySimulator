@@ -109,7 +109,7 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 
 	def get_value_with_probabilistics_erroneous_value(value, idx):
 		if random_generator.random() < probability_of_erroneous_reading:
-		#	print "Error inserted at: ", idx
+			print "Error inserted at: ", idx
 			return get_erroneous_value(value)
 		return value
 	
@@ -557,6 +557,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	sensors_reporting_erroneous_data = [] #list of sensors that are reporting wrong data
 	list_of_predicted_values_to_change_for_errors = []
 	error_tracker = []
+	inputs = []
 	
 	for i in range(len(lattice_of_sensors)**2):
 		error_tracker.append(linked_list.LinkedList())
@@ -572,7 +573,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	#then we look at the previous readings of the sensors, if the previous reading reported a flag then we
 	#consider it to be either an error or a rare event
 	for time in range(1, number_of_time_points - 1):
-		inputs = get_vector_of_time_series_from_all_sensors(time - 1) #previous readings
+		inputs.append(get_vector_of_time_series_from_all_sensors(time - 1)) #previous readings, keep track of them
 		outputs = get_vector_of_time_series_from_all_sensors(time) #actual readings
 		sensors_that_deviate_from_prediction = []
 		number_of_sensors_that_deviate_from_prediction = 0
@@ -584,7 +585,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 
 			#run only if a sensor deviates from prediction
 			if does_a_sensor_deviates_from_prediction(prediction, next_times_series):
-				#get how many sensors deviate from prediciotn
+				#get how many sensors deviate from prediction
 				sensors_that_deviate_from_prediction = get_sensors_that_deviate_from_prediction(prediction, next_times_series)
 				number_of_sensors_that_deviate_from_prediction = len(sensors_that_deviate_from_prediction)
 				#if more than one sensor is reporting erroneous data, assume is a rare event at first
@@ -615,8 +616,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 					time_since_previous_error = 0
 			"Flag sensors reading, as  error or not error in history usin error_tracker"
 			flag_readings(sensors_that_deviate_from_prediction, error_tracker)
-			#if number_of_sensors_that_deviate_from_prediction > 0:
-			#print time_since_previous_error
+			"Find the errors"
 			if time_since_previous_error < 0:
 				sensor_id = history_of_sensors_with_errors[-1]
 				if is_change_in_slope(sensor_id, time, error_tracker):
@@ -626,21 +626,9 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 					print "Is continous"
 
 		#if there is something in the history use it as the input for trainig
-		"""
-		if history_of_errors:
-			sensor_id = history_of_errors[0]
-			inputs[sensor_id] = history_of_errors[1]
-			del history_of_errors[:]
-		"""
 		#trains with the predicted value if there is something in history
-		neural_net.step(input = inputs, output = outputs)
+		neural_net.step(input = inputs[-1], output = outputs)
 
-		#keep the predicted value for history
-		"""
-		if sensors_that_deviate_from_prediction > 0:
-			history_of_errors.append(sensor_id)
-			history_of_errors.append(prediction[sensor_id])
-		"""
 		if time <= warmup_time:
 			prediction = ask_neural_net(outputs) #checks if the prediction is ok
 		
