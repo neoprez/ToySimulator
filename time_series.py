@@ -103,12 +103,12 @@ def get_data_from_file(file_name, mode="rb"):
 	return data
 
 def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation, random_generator):
+	erroneous_reading_standard_deviation, warmup_time, random_generator):
 	def get_erroneous_value(value):
 		return random_generator.normalvariate(value, erroneous_reading_standard_deviation)
 
 	def get_value_with_probabilistics_erroneous_value(value, idx):
-		if random_generator.random() < probability_of_erroneous_reading:
+		if random_generator.random() < probability_of_erroneous_reading and idx > warmup_time:
 			print "Error inserted at: ", idx
 			return get_erroneous_value(value)
 		return value
@@ -190,14 +190,14 @@ def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_r
 	sensor.set_time_series(erroneous_reading)
 
 def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation, random_generator):
+	erroneous_reading_standard_deviation, warmup_time, random_generator):
 	"""
 	This function adds erroneous readings to a single sensor time series. 
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
 	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
-		probability_of_erroneous_reading, erroneous_reading_standard_deviation, random_generator)
+		probability_of_erroneous_reading, erroneous_reading_standard_deviation, warmup_time, random_generator)
 	erroneous_reading = normalize_to_range(erroneous_reading, 1.0) #normalize to be between 0 and 1
 	sensor.set_time_series(erroneous_reading)
 
@@ -520,27 +520,31 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	def is_drift_towards_a_value():
 		pass
 
-	def is_change_in_slope(sensor_id, time, error_tracker):
+	def is_a_spike(sensor_id, time, error_tracker):
 		history = error_tracker[sensor_id]
-		value_to_stop_at = time
+		time_to_stop_at = time
 		index = 0
 		previous_flag = history.get_node_at(index).val
 		index += 1
 		max_index = history.get_node_count()
 		nodes_since_last_error = 0
+		next_flag = 0
 
 		while index < max_index:
 			next_flag = history.get_node_at(index).val
 
 			if previous_flag == 1 and next_flag == 0:
-				return True
+				break#return True
 
 			if previous_flag == 1 and next_flag == 1:
 				return False
 
 			previous_flag = next_flag
 			index += 1
-			value_to_stop_at -= 1
+			time_to_stop_at -= 1
+
+		for i in range(time, time_to_stop_at - 1, -1):
+			print i
 		#print "after change"
 		return False
 
@@ -558,7 +562,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	list_of_predicted_values_to_change_for_errors = []
 	error_tracker = []
 	inputs = []
-	
+
 	for i in range(len(lattice_of_sensors)**2):
 		error_tracker.append(linked_list.LinkedList())
 
@@ -619,7 +623,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			"Find the errors"
 			if time_since_previous_error < 0:
 				sensor_id = history_of_sensors_with_errors[-1]
-				if is_change_in_slope(sensor_id, time, error_tracker):
+				if is_a_spike(sensor_id, time, error_tracker):
 					"Get the value at 0 then at 1 then check the slope"
 					print "Change in slope"
 				if is_continous_value(sensor_id, time, error_tracker):
@@ -672,7 +676,7 @@ def get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimens
 			data.append([sensor_number, (time+1), sensor_time_series[time]])
 
 	data = []
-	data.append(col_headers) #add the columns headers
+	data.append(col_headers) #add the columns headerst
 
 	sensor_number = 1 #actual sensor from where the reading is taken
 	for row in range(dimension_of_lattice):
@@ -727,7 +731,7 @@ def main():
 	"Add errors"
 	"Sensor (0,0) with errors"
 	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation, random_generator)
+	erroneous_reading_standard_deviation, warmup_time, random_generator)
 	"""Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
