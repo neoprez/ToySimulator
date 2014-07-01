@@ -8,6 +8,7 @@ import conx
 import sys
 import os
 import linked_list
+import numpy as np
 
 def generate_time_series(number_of_time_points):
 	"This returns a list of randomly varying numbers"
@@ -110,21 +111,24 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 	def get_value_with_probabilistics_erroneous_value(value, idx):
 		if random_generator.random() < probability_of_erroneous_reading and idx > warmup_time:
 			print "Error inserted at: ", idx
-			return get_erroneous_value(value)
-		return value
+			return get_erroneous_value(value), 1
+		return value, 0
 	
 	new_series = []
+	count_of_errors = 0
 
 	for i in range(len(time_series)):
 		value = time_series[i]
-		new_series.append(get_value_with_probabilistics_erroneous_value(value, i))
+		value, count = get_value_with_probabilistics_erroneous_value(value, i)
+		count_of_errors += count
+		new_series.append(value)
 
-	return new_series
+	return new_series, count_of_errors
 
 	#return [get_value_with_probabilistics_erroneous_value(value) for value in time_series]
 
 def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of_erroneous_reading, 
-	number_of_continous_erroneous_readings, random_generator):
+	number_of_continous_erroneous_readings, warmup_time, random_generator):
 	"""
 	This function produces a continous sequence of erroneous readings. 
 	Ex: 34, 35,35,35, 32, 38 ...
@@ -136,15 +140,17 @@ def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of
 		end_index = min(start_index+number_of_continous_erroneous_readings, len(data))
 		for i in range(start_index, end_index):
 			data[i] = value
+		return 1 #amount of errors inserted
 
 	modified_time_series = time_series[:]
+	number_of_errors_inserted = 0
 
 	for idx in range(len(modified_time_series)): 
-		if does_continous_erroneous_value_starts():
+		if does_continous_erroneous_value_starts() and idx > warmup_time:
 			value = modified_time_series[idx]
-			insert_continous_value(value, idx, modified_time_series)
+			number_of_errors_inserted += insert_continous_value(value, idx, modified_time_series)
 
-	return modified_time_series
+	return modified_time_series, number_of_errors_inserted
 
 def add_erroneous_drift_towards_a_value(time_series, probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator):
@@ -178,16 +184,17 @@ def add_erroneous_drift_towards_a_value(time_series, probability_of_erroneous_re
 	return modified_time_series
 
 def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
-	number_of_continous_erroneous_readings, random_generator):
+	number_of_continous_erroneous_readings, warmup_time, random_generator):
 	"""
 	This function adds a sequence erroneous readings to a single sensor time series. 
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
-	erroneous_reading = add_erroneous_continuous_sequence_to_time_series(time_series, 
-		probability_of_erroneous_reading, number_of_continous_erroneous_readings, random_generator)
+	erroneous_reading, number_of_errors_inserted = add_erroneous_continuous_sequence_to_time_series(time_series, 
+		probability_of_erroneous_reading, number_of_continous_erroneous_readings, warmup_time, random_generator)
 	erroneous_reading = normalize_to_range(erroneous_reading, 1.0)
 	sensor.set_time_series(erroneous_reading)
+	return number_of_errors_inserted
 
 def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, warmup_time, random_generator):
@@ -196,10 +203,11 @@ def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading,
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
-	erroneous_reading = add_erroneous_reading_to_time_series(time_series, 
+	erroneous_reading, count_of_errors = add_erroneous_reading_to_time_series(time_series, 
 		probability_of_erroneous_reading, erroneous_reading_standard_deviation, warmup_time, random_generator)
 	erroneous_reading = normalize_to_range(erroneous_reading, 1.0) #normalize to be between 0 and 1
 	sensor.set_time_series(erroneous_reading)
+	return count_of_errors
 
 def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator):
@@ -543,10 +551,10 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			index += 1
 			time_to_stop_at -= 1
 
-		for i in range(time, time_to_stop_at - 1, -1):
-			print i
+		#for i in range(time, time_to_stop_at - 2, -1):
+			#print i
 		#print "after change"
-		return False
+		return True
 
 	def flag_readings(sensors_that_deviate_from_prediction, error_tracker):
 		for i in range(len(error_tracker)):
@@ -562,14 +570,17 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 	list_of_predicted_values_to_change_for_errors = []
 	error_tracker = []
 	inputs = []
+	number_of_sensors_in_lattice = len(lattice_of_sensors)**2
 
-	for i in range(len(lattice_of_sensors)**2):
+	for i in range(number_of_sensors_in_lattice):
 		error_tracker.append(linked_list.LinkedList())
 
 	time_since_previous_error = 0
 	history_of_sensors_with_errors = []
 	number_of_erroneous_readings = 0
-
+	number_of_errors_detected = 0
+	list_of_errors_detected_in_each_time_point = []
+	list_non_erroneous_detections_at_each_time_point = []
 	"To differentiate between a rare event and error I will use the number of sensors that change the readings"
 	#number_of_sensors_that_deviate_from_prediction = 0
 	#to keep track of the readings in each of the sensors.
@@ -597,13 +608,17 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				if number_of_sensors_that_deviate_from_prediction > 1:
 					if is_rare_event(next_times_series, error_tracker, sensors_that_deviate_from_prediction, time):
 						print "Rare at time:", time
+					list_of_errors_detected_in_each_time_point.append([number_of_sensors_that_deviate_from_prediction, 1]) #1 for rare event
+					list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice - number_of_sensors_that_deviate_from_prediction, 0])
 				else: #if it is not more than one, assume is an error and flagit
 					"Error prediction"
 					"if the prediction deviates, train the network with the predicted value"
+					list_of_errors_detected_in_each_time_point.append([1, 1])
+					list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice - 1, 0])
 					sensor_id = sensors_that_deviate_from_prediction[0] #get the id of the sensor that is reporting erroneous data
 					history_of_sensors_with_errors.append(sensor_id)
-					print "Error at:", time
-
+					#print "Error at:", time
+					number_of_errors_detected += 1
 					if is_drift_towards_a_value():
 						pass
 
@@ -614,6 +629,8 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 					total_error += rmse
 			else:
 				"Check if there was an error, to set the flag for history"
+				list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
+				list_of_errors_detected_in_each_time_point.append([0, 1])
 				if time_since_previous_error > 0:
 					time_since_previous_error = (-1 * time_since_previous_error) #change sign to determine the amount of error
 				else:
@@ -626,14 +643,18 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				if is_a_spike(sensor_id, time, error_tracker):
 					"Get the value at 0 then at 1 then check the slope"
 					print "Change in slope"
+					#number_of_errors_detected += 1
 				if is_continous_value(sensor_id, time, error_tracker):
 					print "Is continous"
+					#number_of_errors_detected += 1
 
 		#if there is something in the history use it as the input for trainig
 		#trains with the predicted value if there is something in history
 		neural_net.step(input = inputs[-1], output = outputs)
 
 		if time <= warmup_time:
+			list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
+			list_of_errors_detected_in_each_time_point.append([0, 1])
 			prediction = ask_neural_net(outputs) #checks if the prediction is ok
 		
 		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
@@ -641,9 +662,9 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 
 		rmse_data.append([time, rmse])
 
-	print sensors_reporting_erroneous_data
+	print "number of errors detected:", number_of_errors_detected
 	print "Total Error:", str(total_error/number_of_time_points)
-	return rmse_data
+	return rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point, list_non_erroneous_detections_at_each_time_point
 
 def calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points):
 	"""
@@ -697,7 +718,7 @@ def main():
 	number_of_time_points = 20000
 	input_vector_size = 1
 	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
-	warmup_time = 150 #warmup for 150 data points
+	warmup_time = 1500 #warmup for 150 data points
 	error_threshold = 0.02
 	time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
 	rmse_header = ["TIME", "RMSE"]
@@ -729,39 +750,44 @@ def main():
 	list_of_time_series = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
 	lattice_of_sensors = create_lattice_of_sensors(dimension_of_lattice, list_of_time_series)
 	"Add errors"
+	number_of_errors_inserted = 0
 	"Sensor (0,0) with errors"
-	add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
-	erroneous_reading_standard_deviation, warmup_time, random_generator)
+	#number_of_errors_inserted += add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
+	#erroneous_reading_standard_deviation, warmup_time, random_generator)
 	"""Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
 	"Sensor (0,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
-	"Sensor (2,2) with errors"
-	add_continous_erroneous_reading_to_sensor(lattice_of_sensors[2][2], probability_of_erroneous_reading, 
-	number_of_continous_erroneous_readings, random_generator)
-	
+	""""Sensor (2,2) with errors"
+	#number_of_errors_inserted += add_continous_erroneous_reading_to_sensor(lattice_of_sensors[2][2], probability_of_erroneous_reading, 
+	#number_of_continous_erroneous_readings, warmup_time, random_generator)
 	"RARE EVENT at (3,3)"""
+	print "number of errors inserted",number_of_errors_inserted
 	max_dist = 2
 	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
 	rare_event_song = generate_predictable_sin_time_series(number_of_time_points)
 	loudness = 0.9 #volume of reading at which the principal sensor is going to listen the rare song
 	#generate_rare_event_to_lattice(lattice_of_sensors, max_dist, min_hearable_volume, 
 	#loudness, rare_event_song, random_generator) #picks a random sensor
-	#generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
-	#loudness, rare_event_song, random_generator)
+	generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
+	loudness, rare_event_song, random_generator)
 	#add_erroneous_reading_to_sensor(lattice_of_sensors[3][3], probability_of_erroneous_reading, 
 	#erroneous_reading_standard_deviation, random_generator)
 	"Neural network"
 	neural_net = create_neural_network(dimension_of_lattice**2)
-	rmse_data = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
+	rmse_data, number_of_errors_detected, \
+	list_of_errors_detected_in_each_time_point, list_non_erroneous_detections_at_each_time_point = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
 
+	print list_non_erroneous_detections_at_each_time_point
+	#save erroneous data to file
+	save_data_to_file([[number_of_errors_inserted, number_of_errors_detected]], "errors_"+run_id+".csv")
 	rmse_data.insert(0, rmse_header)
 	save_data_to_file(rmse_data, "rmse" + run_id + ".csv")
-	#data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
-	#save_data_to_file(data, "time_series" + run_id + ".csv" )
-	
+	data = get_data_with_col_headers_from_lattice_of_sensors(lattice_of_sensors, dimension_of_lattice, time_series_header)
+	save_data_to_file(data, "time_series" + run_id + ".csv" )
+
 	averaged_rmse_data = calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points)
 
 	plt.plot(averaged_rmse_data)
@@ -773,8 +799,6 @@ def main():
 		the_data_for_file.append([i, averaged_rmse_data[i]])
 	save_data_to_file(the_data_for_file, "averaged_erm.csv")
 	"""
-
-	
 	figure = plt.figure()
 	normal_data = gather_time_series_from_sensors(lattice_of_sensors)
 	axes_n = figure.add_subplot(1, 1, 1)
