@@ -496,11 +496,6 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		else:
 			return False
 
-
-
-
-
-
 		for idx in range(len(sensors_that_deviate_from_prediction) - 1):
 			"look at the sensors that are the closest, to find their deviation"
 			sensor_id_a = sensors_that_deviate_from_prediction[idx]
