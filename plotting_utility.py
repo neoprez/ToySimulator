@@ -29,10 +29,13 @@ def plot_scatter_plot_of_errors_vs_anomalies_detected():
 	data = get_data_from_file("binary_list_of_sensors_.csv")
 	x = []
 	y = []
+	area = []
 
 	for row in data:
-		x.append(row[0])
-		y.append(row[1])
+		for number_of_points_to_draw in range(int(row[0])):
+			x.append(row[2]) #the time
+			y.append(row[1]) #the type
+			
 
 	x = np.array(x)
 	y = np.array(y)
@@ -40,7 +43,7 @@ def plot_scatter_plot_of_errors_vs_anomalies_detected():
 	plt.ylabel("Is anomaly?")
 	plt.xlabel("# of Sensors reporting erroneous readings")
 	plt.title("Correlation anomalies vs errors")
-	plt.scatter(x, y, alpha = 0.5)
+	plt.scatter(x, y, alpha = 0.5, marker='.')
 	plt.show()
 
 plot_scatter_plot_of_errors_vs_anomalies_detected()
