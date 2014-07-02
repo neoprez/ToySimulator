@@ -472,6 +472,35 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		Check if there is a correlation between the change in values among the sensors 
 		that deviate from prediction at a time point.
 		"""
+		history = []
+		count_of_sensors = 0
+		max_index = error_tracker[0].get_node_count()
+
+		for sensor_id in sensors_that_deviate_from_prediction:
+			history = error_tracker[sensor_id]
+
+			previous_flag = history.get_node_at(0).val
+			idx = 1
+
+			while idx < max_index:
+				next_flag = history.get_node_at(idx).val
+				idx += 1
+				if previous_flag == 1 and next_flag == 1:
+					count_of_sensors+= 1
+					break
+				else:
+					break
+
+		if count_of_sensors > len(sensors_that_deviate_from_prediction)/2:
+			return True
+		else:
+			return False
+
+
+
+
+
+
 		for idx in range(len(sensors_that_deviate_from_prediction) - 1):
 			"look at the sensors that are the closest, to find their deviation"
 			sensor_id_a = sensors_that_deviate_from_prediction[idx]
@@ -607,14 +636,15 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				"Rare event prediction" 
 				if number_of_sensors_that_deviate_from_prediction > 1:
 					if is_rare_event(next_times_series, error_tracker, sensors_that_deviate_from_prediction, time):
+						list_of_errors_detected_in_each_time_point.append([number_of_sensors_that_deviate_from_prediction, 1]) #1 for rare event
 						print "Rare at time:", time
-					list_of_errors_detected_in_each_time_point.append([number_of_sensors_that_deviate_from_prediction, 1]) #1 for rare event
-					list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice - number_of_sensors_that_deviate_from_prediction, 0])
+						time_since_previous_error = 0
+
+					#list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice - number_of_sensors_that_deviate_from_prediction, 0])
 				else: #if it is not more than one, assume is an error and flagit
 					"Error prediction"
 					"if the prediction deviates, train the network with the predicted value"
-					list_of_errors_detected_in_each_time_point.append([1, 1])
-					list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice - 1, 0])
+					#list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice - 1, 0])
 					sensor_id = sensors_that_deviate_from_prediction[0] #get the id of the sensor that is reporting erroneous data
 					history_of_sensors_with_errors.append(sensor_id)
 					#print "Error at:", time
@@ -629,8 +659,8 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 					total_error += rmse
 			else:
 				"Check if there was an error, to set the flag for history"
-				list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
-				list_of_errors_detected_in_each_time_point.append([0, 1])
+				#list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
+				#list_of_errors_detected_in_each_time_point.append([0, 1])
 				if time_since_previous_error > 0:
 					time_since_previous_error = (-1 * time_since_previous_error) #change sign to determine the amount of error
 				else:
@@ -643,8 +673,10 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				if is_a_spike(sensor_id, time, error_tracker):
 					"Get the value at 0 then at 1 then check the slope"
 					print "Change in slope"
+					list_of_errors_detected_in_each_time_point.append([1, 0]) #1 for rare event
 					#number_of_errors_detected += 1
 				if is_continous_value(sensor_id, time, error_tracker):
+					list_of_errors_detected_in_each_time_point.append([1, 0]) #1 for rare event
 					print "Is continous"
 					#number_of_errors_detected += 1
 
@@ -653,8 +685,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		neural_net.step(input = inputs[-1], output = outputs)
 
 		if time <= warmup_time:
-			list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
-			list_of_errors_detected_in_each_time_point.append([0, 1])
+			#list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
 			prediction = ask_neural_net(outputs) #checks if the prediction is ok
 		
 		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
@@ -664,7 +695,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 
 	print "number of errors detected:", number_of_errors_detected
 	print "Total Error:", str(total_error/number_of_time_points)
-	return rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point, list_non_erroneous_detections_at_each_time_point
+	return rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point
 
 def calculate_average_rmse_for_every_data_point_in_all_files(number_of_time_points):
 	"""
@@ -717,7 +748,7 @@ def main():
 	number_of_erroneous_points = 500
 	number_of_time_points = 20000
 	input_vector_size = 1
-	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
+	dimension_of_lattice = 10 #dimension of the lattice of sensors. A square grid
 	warmup_time = 1500 #warmup for 150 data points
 	error_threshold = 0.02
 	time_series_header = ["SENSOR NUMBER", "TIME", "READING"]
@@ -752,8 +783,8 @@ def main():
 	"Add errors"
 	number_of_errors_inserted = 0
 	"Sensor (0,0) with errors"
-	#number_of_errors_inserted += add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
-	#erroneous_reading_standard_deviation, warmup_time, random_generator)
+	number_of_errors_inserted += add_erroneous_reading_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
+	erroneous_reading_standard_deviation, warmup_time, random_generator)
 	"""Sensor (1,0), with errors"
 	add_erroneous_drift_towards_a_value_to_sensor(lattice_of_sensors[0][0], probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator)
@@ -778,9 +809,10 @@ def main():
 	"Neural network"
 	neural_net = create_neural_network(dimension_of_lattice**2)
 	rmse_data, number_of_errors_detected, \
-	list_of_errors_detected_in_each_time_point, list_non_erroneous_detections_at_each_time_point = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
+	list_of_errors_detected_in_each_time_point = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
 
-	print list_non_erroneous_detections_at_each_time_point
+	print "list of errors detected",len(list_of_errors_detected_in_each_time_point)
+	save_data_to_file(list_of_errors_detected_in_each_time_point, "binary_list_of_sensors_"+run_id+".csv")
 	#save erroneous data to file
 	save_data_to_file([[number_of_errors_inserted, number_of_errors_detected]], "errors_"+run_id+".csv")
 	rmse_data.insert(0, rmse_header)
