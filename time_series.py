@@ -503,7 +503,6 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 			reading_a = next_times_series[sensor_id_a]
 			reading_b = next_times_series[sensor_id_b]
 
-
 	def check_history_of_erroneous_sensors(error_tracker, sensors_reporting_erroneous_data):
 		for sensor_index in sensors_reporting_erroneous_data:
 			"Look at the flags of the previous readings"
@@ -627,11 +626,11 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				#get how many sensors deviate from prediction
 				sensors_that_deviate_from_prediction = get_sensors_that_deviate_from_prediction(prediction, next_times_series)
 				number_of_sensors_that_deviate_from_prediction = len(sensors_that_deviate_from_prediction)
+				list_of_errors_detected_in_each_time_point.append([number_of_sensors_that_deviate_from_prediction, 1, time]) #1 for rare event
 				#if more than one sensor is reporting erroneous data, assume is a rare event at first
 				"Rare event prediction" 
 				if number_of_sensors_that_deviate_from_prediction > 1:
 					if is_rare_event(next_times_series, error_tracker, sensors_that_deviate_from_prediction, time):
-						list_of_errors_detected_in_each_time_point.append([number_of_sensors_that_deviate_from_prediction, 1]) #1 for rare event
 						print "Rare at time:", time
 						time_since_previous_error = 0
 
@@ -656,6 +655,7 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				"Check if there was an error, to set the flag for history"
 				#list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
 				#list_of_errors_detected_in_each_time_point.append([0, 1])
+				list_of_errors_detected_in_each_time_point.append([number_of_sensors_in_lattice - number_of_sensors_that_deviate_from_prediction, 0, time]) #1 for rare event
 				if time_since_previous_error > 0:
 					time_since_previous_error = (-1 * time_since_previous_error) #change sign to determine the amount of error
 				else:
@@ -668,13 +668,10 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 				if is_a_spike(sensor_id, time, error_tracker):
 					"Get the value at 0 then at 1 then check the slope"
 					print "Change in slope"
-					list_of_errors_detected_in_each_time_point.append([1, 0]) #1 for rare event
 					#number_of_errors_detected += 1
 				if is_continous_value(sensor_id, time, error_tracker):
-					list_of_errors_detected_in_each_time_point.append([1, 0]) #1 for rare event
 					print "Is continous"
 					#number_of_errors_detected += 1
-
 		#if there is something in the history use it as the input for trainig
 		#trains with the predicted value if there is something in history
 		neural_net.step(input = inputs[-1], output = outputs)
@@ -682,7 +679,8 @@ def run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_po
 		if time <= warmup_time:
 			#list_non_erroneous_detections_at_each_time_point.append([number_of_sensors_in_lattice, 0])
 			prediction = ask_neural_net(outputs) #checks if the prediction is ok
-		
+			list_of_errors_detected_in_each_time_point.append([number_of_sensors_in_lattice - number_of_sensors_that_deviate_from_prediction, 0, time]) #1 for rare event
+
 		next_times_series = get_vector_of_time_series_from_all_sensors(time + 1)
 		rmse = get_rmse(prediction, next_times_series)
 
@@ -791,7 +789,7 @@ def main():
 	#number_of_continous_erroneous_readings, warmup_time, random_generator)
 	"RARE EVENT at (3,3)"""
 	print "number of errors inserted",number_of_errors_inserted
-	max_dist = 2
+	max_dist = 10
 	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
 	rare_event_song = generate_predictable_sin_time_series(number_of_time_points)
 	loudness = 0.9 #volume of reading at which the principal sensor is going to listen the rare song
