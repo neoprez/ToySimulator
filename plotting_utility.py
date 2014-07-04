@@ -4,6 +4,7 @@ import numpy as np
 from pylab import *
 import scipy as sp
 from scipy.stats import *
+import copy
 
 def get_data_from_file(file_name, mode="rb"):
 	data = []
@@ -25,25 +26,40 @@ def plot_scatter_plot_of_errors():
 	plt.scatter(x, y)
 	plt.show()
 
-def plot_scatter_plot_of_errors_vs_anomalies_detected():
-	data = get_data_from_file("binary_list_of_sensors_.csv")
+def get_list_of_data_as_x_and_y(data):
 	x = []
 	y = []
-	area = []
 
 	for row in data:
-		for number_of_points_to_draw in range(int(row[0])):
-			x.append(row[2]) #the time
-			y.append(row[1]) #the type
-			
+		x.append(row[0]) #the time
+		y.append(row[1]) #the type
 
-	x = np.array(x)
-	y = np.array(y)
+	return x,y
 
-	plt.ylabel("Is anomaly?")
-	plt.xlabel("# of Sensors reporting erroneous readings")
-	plt.title("Correlation anomalies vs errors")
-	plt.scatter(x, y, alpha = 0.5, marker='.')
+def show_scatter_plot_of_data(x, y, plot_title, x_label, y_label, alpha = 0.5):
+	plt.ylabel(y_label)
+	plt.xlabel(x_label)
+	plt.title(plot_title)
+	plt.scatter(x, y, alpha = 0.5)
 	plt.show()
 
-plot_scatter_plot_of_errors_vs_anomalies_detected()
+def plot_number_of_sensors_that_deviate_and_is_rare_event():
+	"Plots the number of sensors that deviate and are rare event from the file."
+
+	def change_from_boolean_string_to_integer(list_of_boolean_string_values):
+		"Returns a list containing 1 for True and 0 for False"
+		return [1 if val == 'True' else 0 for val in list_of_boolean_string_values]
+
+	data = get_data_from_file("number_of_sensors_that_deviate_and_is_rare_event.csv")
+	_ , y = get_list_of_data_as_x_and_y(data)
+
+	warmup_time = 1500
+	x = range(warmup_time, len(y) + warmup_time)
+	y = change_from_boolean_string_to_integer(y)
+
+	show_scatter_plot_of_data(x, y, "Anomalies vs no anomalies", "Time", "Is rare event?")
+
+#plot_number_of_sensors_that_deviate_and_is_rare_event()
+plot_scatter_plot_of_errors()
+
+
