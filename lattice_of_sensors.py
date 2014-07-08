@@ -1,18 +1,11 @@
 import random
-import matplotlib.pyplot as plt
 import sensor
 import csv
-import neuralnet
-import math
-import conx
-import sys
-import os
-import linked_list
-import numpy as np
 import file_tools as ft
 import error_rare_event_generator as error_generator
 import time_series_tools as tstools
 import lattice
+import stat_tools as stats
 
 def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, random_generator):
@@ -53,7 +46,7 @@ def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneo
 	sensor.set_time_series(erroneous_reading)
 	return erroneous_reading
 
-def add_errors(lattice_of_sensors, random_generator):
+def add_errors(lattice_of_sensors, random_generator, warmup_time):
 	"This function adds an error to a sensor in the lattice of sensors"
 	number_of_continous_erroneous_readings = 500
 	probability_of_erroneous_reading = 0.001
@@ -61,9 +54,12 @@ def add_errors(lattice_of_sensors, random_generator):
 	number_of_erroneous_points = 500
 
 	sensor_to_insert_errors = lattice_of_sensors.get_sensor(0,0);
-	add_erroneous_reading_to_sensor(sensor_to_insert_errors,
+	erroneous_readings = add_erroneous_reading_to_sensor(sensor_to_insert_errors,
 	 probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, warmup_time, random_generator)
+	print "len of err", len(erroneous_readings)
+
+	return lattice_of_sensors.gather_time_series_from_all_sensors()
 
 def add_rare_event(file_name, lattice_of_sensors, random_generator):
 	"This function adds a rare event to a time series in the sensors"
@@ -76,32 +72,58 @@ def add_rare_event(file_name, lattice_of_sensors, random_generator):
 
 	return lattice_of_sensors.gather_time_series_from_all_sensors(), start_index, end_index
 
-
-def differentiate_errors_from_rare_event():
-	warmup_time = 1500 #warmup for 1500 data points
-	error_threshold = 0.02
+def differentiate_errors_from_rare_event(lattice_of_sensors, number_of_time_points, warmup_time, error_threshold):
+	"""
+	This functions runs the neural net in the lattice of sensors, returns the results. 
+	RMSE, number_of_errors_detected and list_of_errors_detected_in_each_time_point
+	"""
 
 	"Neural network"
-	neural_net = create_neural_network(dimension_of_lattice**2)
-	rmse_data, number_of_errors_detected, \
-	list_of_errors_detected_in_each_time_point = run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, warmup_time, error_threshold)
+	neural_net = stats.create_neural_network(lattice_of_sensors.number_of_sensors) #creates a neural network with number_of_sensors nodes
 
-	print "list of errors detected",len(list_of_errors_detected_in_each_time_point)
+	return stats.run_neural_net_in_all_data(neural_net, lattice_of_sensors, number_of_time_points, 
+	warmup_time, error_threshold)
 
-	number_of_sensors_that_deviate_and_is_rare_event = number_of_sensors_deviating_vs_rare_event(start_index, end_index, list_of_errors_detected_in_each_time_point)
-	save_data_to_file(number_of_sensors_that_deviate_and_is_rare_event, "number_of_sensors_that_deviate_and_is_rare_event.csv")
+
+def save_data_to_file(list_of_data, list_of_file_names):
+	"This function save all the data from the list into csv files"
+	for data, name in zip(list_of_data, list_of_file_names):
+		ft.save_data_to_file(data, name)
+
 
 def main():
-	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
+	
+	dimension_of_lattice = 10 #dimension of the lattice of sensors. A square grid
 	random_generator = random.Random()
+	number_of_time_points = 0
+	warmup_time = 1500 #warmup for 1500 data points
+	error_threshold = 0.02
 	#assigns the values to the sensor based on the location of the sensors in the lattice
-	list_of_time_series = ft.get_data_from_file("the_series.csv")
+	list_of_time_series = ft.get_data_from_file("the_series_normalized.csv")
 	lattice_of_sensors = lattice.Lattice(dimension_of_lattice)
 	lattice_of_sensors.set_time_series_according_to_sensor_weight(list_of_time_series)
+	number_of_time_points = len(list_of_time_series[0])
 
-	time_series = lattice_of_sensors.gather_time_series_from_all_sensors()
-	ft.save_data_to_file(time_series, "sensors_before_rare_event.csv")
+	time_series_before_rare_event = lattice_of_sensors.gather_time_series_from_all_sensors()
+	#time_series_with_errors = add_errors(lattice_of_sensors, random_generator, warmup_time)
+	#time_series_after_rare_event, start_index, end_index = add_rare_event("rare_song_normalized.csv", lattice_of_sensors, random_generator)
 
-	rare_time_series, start_index, end_index = add_rare_event("rare_song.csv", lattice_of_sensors, random_generator)
-	ft.save_data_to_file(rare_time_series, "sensors_after_rare_event.csv")
+	rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point = differentiate_errors_from_rare_event(lattice_of_sensors, 
+		number_of_time_points, warmup_time, error_threshold)
+	#number_of_sensors_that_deviate_and_is_rare_event = stats.number_of_sensors_deviating_vs_rare_event(start_index, 
+	#	end_index, list_of_errors_detected_in_each_time_point)
+
+	save_data_to_file(
+		[time_series_before_rare_event, rmse_data ], 
+		["sensors_before_rare_event.csv", "rmse_data.csv"]
+		)
+	"""
+	time_series_after_rare_event,
+		 number_of_sensors_that_deviate_and_is_rare_event, time_series_with_errors
+
+		, 
+		"sensors_after_rare_event.csv", "number_of_sensors_that_deviate_and_is_rare_event.csv",
+		"sensors_after_inserting_errors.csv"
+	"""
+
 main()
