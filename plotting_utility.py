@@ -6,9 +6,14 @@ import scipy as sp
 from scipy.stats import *
 import copy
 import file_tools as ft
+import sys
 
-def plot_scatter_plot_of_errors():
-	data = ft.get_data_from_file("final.csv")
+def plot_scatter_plot_of_errors(file_name):
+	"""
+	this function is for plotting the errors detected vs errors inserted.
+	Usually file name is final.csv
+	"""
+	data = ft.get_data_from_file(file_name)
 
 	x, y = get_list_of_data_as_x_and_y(data)
 
@@ -35,14 +40,17 @@ def show_scatter_plot_of_data(x, y, plot_title, x_label, y_label, alpha = 0.5):
 	plt.scatter(x, y, alpha = 0.5)
 	plt.show()
 
-def plot_number_of_sensors_that_deviate_and_is_rare_event():
-	"Plots the number of sensors that deviate and are rare event from the file."
+def plot_number_of_sensors_that_deviate_and_is_rare_event(file_name):
+	"""
+	Plots the number of sensors that deviate and are rare event from the file.
+	usually the file name is number_of_sensors_that_deviate_and_is_rare_event.csv.
+	"""
 
 	def change_from_boolean_string_to_integer(list_of_boolean_string_values):
 		"Returns a list containing 1 for True and 0 for False"
 		return [1 if val == 'True' else 0 for val in list_of_boolean_string_values]
 
-	data = ft.get_data_from_file("number_of_sensors_that_deviate_and_is_rare_event.csv")
+	data = ft.get_data_from_file(file_name)
 	_ , y = get_list_of_data_as_x_and_y(data)
 
 	warmup_time = 1500
@@ -57,8 +65,34 @@ def plot_time_series_file(file_name):
 	plt.plot(transposed_data)
 	plt.show()
 
-#plot_number_of_sensors_that_deviate_and_is_rare_event()
-#plot_time_series_file("sensors_after_rare_event.csv")
-plot_time_series_file("sensors_before_rare_event.csv")
+def plot_file_in_columns(file_name):
+	data = ft.get_data_from_file(file_name)
+	plt.plot(data)
+	plt.show()
+
+def main():
+	print "Which plot do you want to show?"
+	print "1 - Scatther plot of errors. \n" + \
+	"2 - Scatter plot of sensors that deviate and is rare event.\n" + \
+	"3 - Plot any time series file. \n" + \
+	"4 - Plot file that is in columns"
+
+	choice = int(input())
+	print "Enter the file name:"
+	file_name = raw_input()
+
+	if choice == 1:
+		plot_scatter_plot_of_errors(file_name)
+
+	if choice == 2:
+		plot_number_of_sensors_that_deviate_and_is_rare_event(file_name)
+
+	if choice == 3:
+		plot_time_series_file(file_name)
+
+	if choice == 4:
+		plot_file_in_columns(file_name)
+
+main()
 
 
