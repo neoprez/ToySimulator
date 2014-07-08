@@ -5,20 +5,12 @@ from pylab import *
 import scipy as sp
 from scipy.stats import *
 import copy
-
-def get_data_from_file(file_name, mode="rb"):
-	data = []
-	with open(file_name, mode) as csv_file:
-		csv_reader = csv.reader(csv_file)
-		for row in csv_reader:
-			data.append(row)
-	return data
+import file_tools as ft
 
 def plot_scatter_plot_of_errors():
-	data = get_data_from_file("final.csv")
+	data = ft.get_data_from_file("final.csv")
 
-	x = np.array(data[0])
-	y = np.array(data[1])
+	x, y = get_list_of_data_as_x_and_y(data)
 
 	plt.ylabel("# of anomalies")
 	plt.xlabel("# of induced errors")
@@ -50,7 +42,7 @@ def plot_number_of_sensors_that_deviate_and_is_rare_event():
 		"Returns a list containing 1 for True and 0 for False"
 		return [1 if val == 'True' else 0 for val in list_of_boolean_string_values]
 
-	data = get_data_from_file("number_of_sensors_that_deviate_and_is_rare_event.csv")
+	data = ft.get_data_from_file("number_of_sensors_that_deviate_and_is_rare_event.csv")
 	_ , y = get_list_of_data_as_x_and_y(data)
 
 	warmup_time = 1500
@@ -59,7 +51,14 @@ def plot_number_of_sensors_that_deviate_and_is_rare_event():
 
 	show_scatter_plot_of_data(x, y, "Anomalies vs no anomalies", "Time", "Is rare event?")
 
+def plot_time_series_file(file_name):
+	data = ft.get_data_from_file(file_name)
+	transposed_data = map(list, zip(*data))
+	plt.plot(transposed_data)
+	plt.show()
+
 #plot_number_of_sensors_that_deviate_and_is_rare_event()
-plot_scatter_plot_of_errors()
+#plot_time_series_file("sensors_after_rare_event.csv")
+plot_time_series_file("sensors_before_rare_event.csv")
 
 
