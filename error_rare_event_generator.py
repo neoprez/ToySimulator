@@ -14,7 +14,6 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 
 	def get_value_with_probabilistics_erroneous_value(value, idx):
 		if random_generator.random() < probability_of_erroneous_reading and idx > warmup_time:
-			print "Error inserted at: ", idx
 			return get_erroneous_value(value), 1
 		return value, 0
 	
@@ -27,7 +26,7 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 		count_of_errors += count
 		new_series.append(value)
 
-	return new_series,
+	return new_series
 
 def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, warmup_time, random_generator):
