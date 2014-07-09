@@ -26,7 +26,7 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 		count_of_errors += count
 		new_series.append(value)
 
-	return new_series
+	return new_series, count_of_errors
 
 def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, warmup_time, random_generator):
