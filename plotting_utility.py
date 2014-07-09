@@ -59,6 +59,20 @@ def plot_number_of_sensors_that_deviate_and_is_rare_event(file_name):
 
 	show_scatter_plot_of_data(x, y, "Anomalies vs no anomalies", "Time", "Is rare event?")
 
+def plot_error_if_greater_than_zero(file_name):
+
+	def is_greater_than_zero(list_of_values):
+		return [1 if int(val) > 0 else 0 for val in list_of_values]
+
+	data = ft.get_data_from_file(file_name)
+	y, _ = get_list_of_data_as_x_and_y(data)
+
+	warmup_time = 1500
+	x = range(warmup_time, len(y) + warmup_time)
+	y = is_greater_than_zero(y)
+
+	show_scatter_plot_of_data(x, y, "Anomalies vs no anomalies", "Time", "Is rare event?")
+
 def plot_time_series_file(file_name):
 	data = ft.get_data_from_file(file_name)
 	transposed_data = map(list, zip(*data))
@@ -75,7 +89,8 @@ def main():
 	print "1 - Scatther plot of errors. \n" + \
 	"2 - Scatter plot of sensors that deviate and is rare event.\n" + \
 	"3 - Plot any time series file. \n" + \
-	"4 - Plot file that is in columns"
+	"4 - Plot file that is in columns\n" + \
+	"5 - Plot if greater than zero"
 
 	choice = int(input())
 	print "Enter the file name:"
@@ -92,6 +107,9 @@ def main():
 
 	if choice == 4:
 		plot_file_in_columns(file_name)
+
+	if choice == 5:
+		plot_error_if_greater_than_zero(file_name)
 
 main()
 
