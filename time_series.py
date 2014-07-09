@@ -52,17 +52,17 @@ def main():
 
 	data_to_write = [time_series, time_series_b, time_series_c]
 
-	ft.save_data_to_file(data_to_write, "the_series.csv")
-	ft.save_data_to_file([rare_event_song], "rare_song.csv")
+	ft.save_data_to_file(data_to_write, "the_series_" + run_id + ".csv")
+	ft.save_data_to_file([rare_event_song], "rare_song_" + run_id + ".csv")
 
 	normalized_time_series = tstools.normalize_to_range(time_series)
 	normalized_time_series_b = tstools.normalize_to_range(time_series_b)
 	normalized_time_series_c = tstools.normalize_to_range(time_series_c)
 
 	data_to_write = [normalized_time_series, normalized_time_series_b, normalized_time_series_c]
-	ft.save_data_to_file(data_to_write, "the_series_normalized.csv")
+	ft.save_data_to_file(data_to_write, "the_series_normalized_" + run_id +".csv")
 
 	rare_event_song_normalized = tstools.normalize_to_range(rare_event_song)
-	ft.save_data_to_file([rare_event_song_normalized], "rare_song_normalized.csv")
+	ft.save_data_to_file([rare_event_song_normalized], "rare_song_normalized_" + run_id + ".csv")
 
 main()
