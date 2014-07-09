@@ -6,6 +6,7 @@ import error_rare_event_generator as error_generator
 import time_series_tools as tstools
 import lattice
 import stat_tools as stats
+import sys
 
 def add_continous_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, random_generator):
@@ -27,11 +28,11 @@ def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading,
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
-	erroneous_reading = error_generator.add_erroneous_reading_to_time_series(time_series, 
+	erroneous_reading, number_of_errors_inserted = error_generator.add_erroneous_reading_to_time_series(time_series, 
 		probability_of_erroneous_reading, erroneous_reading_standard_deviation, warmup_time, random_generator)
 	erroneous_reading = tstools.normalize_to_range(erroneous_reading, 1.0) #normalize to be between 0 and 1
 	sensor.set_time_series(erroneous_reading)
-	return erroneous_reading
+	return erroneous_reading, number_of_errors_inserted
 
 def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator):
@@ -46,24 +47,23 @@ def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneo
 	sensor.set_time_series(erroneous_reading)
 	return erroneous_reading
 
-def add_errors(lattice_of_sensors, random_generator, warmup_time):
+def add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of_erroneous_reading):
 	"This function adds an error to a sensor in the lattice of sensors"
 	number_of_continous_erroneous_readings = 500
-	probability_of_erroneous_reading = 0.001
+	#probability_of_erroneous_reading = 0.001
 	erroneous_reading_standard_deviation = 0.20
 	number_of_erroneous_points = 500
 
 	sensor_to_insert_errors = lattice_of_sensors.get_sensor(0,0);
-	erroneous_readings = add_erroneous_reading_to_sensor(sensor_to_insert_errors,
+	erroneous_readings, number_of_errors_inserted = add_erroneous_reading_to_sensor(sensor_to_insert_errors,
 	 probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, warmup_time, random_generator)
-	print "len of err", len(erroneous_readings)
 
-	return lattice_of_sensors.gather_time_series_from_all_sensors()
+	return lattice_of_sensors.gather_time_series_from_all_sensors(), number_of_errors_inserted
 
-def add_rare_event(file_name, lattice_of_sensors, random_generator):
+def add_rare_event(file_name, lattice_of_sensors, random_generator, max_dist):
 	"This function adds a rare event to a time series in the sensors"
-	max_dist = 2
+	#max_dist = 2
 	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
 	rare_event_song = ft.get_data_from_file(file_name)
 	loudness = 0.9 #volume of reading at which the principal sensor is going to listen the rare song
@@ -98,32 +98,43 @@ def main():
 	number_of_time_points = 0
 	warmup_time = 1500 #warmup for 1500 data points
 	error_threshold = 0.02
+	run_id = ""
+
+	if len(sys.argv) >= 2:
+		run_id = str(sys.argv[1])
+
 	#assigns the values to the sensor based on the location of the sensors in the lattice
-	list_of_time_series = ft.get_data_from_file("the_series_normalized.csv")
+	list_of_time_series = ft.get_data_from_file("the_series_normalized_1.csv")
 	lattice_of_sensors = lattice.Lattice(dimension_of_lattice)
 	lattice_of_sensors.set_time_series_according_to_sensor_weight(list_of_time_series)
 	number_of_time_points = len(list_of_time_series[0])
 
-	time_series_before_rare_event = lattice_of_sensors.gather_time_series_from_all_sensors()
-	#time_series_with_errors = add_errors(lattice_of_sensors, random_generator, warmup_time)
-	#time_series_after_rare_event, start_index, end_index = add_rare_event("rare_song_normalized.csv", lattice_of_sensors, random_generator)
+	#probability_of_erroneous_reading = ((float(run_id) - 1)/2.0) * 0.1 #uses the run id to set the probability for errors
+	#print probability_of_erroneous_reading
+	max_dist = int(run_id)/10
+	print "max dist", max_dist
+	#time_series_before_rare_event = lattice_of_sensors.gather_time_series_from_all_sensors()
+	#time_series_with_errors, number_of_errors_inserted = add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of_erroneous_reading)
+	time_series_after_rare_event, start_index, end_index = add_rare_event("rare_song_normalized_1.csv", lattice_of_sensors, random_generator, max_dist)
 
 	rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point = differentiate_errors_from_rare_event(lattice_of_sensors, 
 		number_of_time_points, warmup_time, error_threshold)
 	#number_of_sensors_that_deviate_and_is_rare_event = stats.number_of_sensors_deviating_vs_rare_event(start_index, 
 	#	end_index, list_of_errors_detected_in_each_time_point)
 
-	save_data_to_file(
-		[time_series_before_rare_event, rmse_data ], 
-		["sensors_before_rare_event.csv", "rmse_data.csv"]
+	save_data_to_file([list_of_errors_detected_in_each_time_point, [[start_index, end_index]]],
+		["list_of_errors_detected_in_each_time_point_"+run_id+".csv", "rare_from_to_"+run_id+".csv"])
+	"""save_data_to_file([rmse_data, [[number_of_errors_inserted, number_of_errors_detected]]],
+		["rmse_data"+run_id+".csv", "number_of_errors_inserted_vs_errors_detected_"+run_id+".csv" ]
 		)
-	"""
+
 	time_series_after_rare_event,
 		 number_of_sensors_that_deviate_and_is_rare_event, time_series_with_errors
-
+	rmse_data, [[number_of_errors_inserted, number_of_errors_detected]] ], 
+		["rmse_data"+run_id+".csv", "number_of_errors_inserted_vs_errors_detected_"+run_id+".csv" ]
 		, 
 		"sensors_after_rare_event.csv", "number_of_sensors_that_deviate_and_is_rare_event.csv",
-		"sensors_after_inserting_errors.csv"
+		"sensors_after_inserting_errors.csv""sensors_after_inserting_errors.csv""sensors_before_rare_event.csv"
 	"""
 
 main()
