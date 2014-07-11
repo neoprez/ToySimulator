@@ -61,12 +61,9 @@ def add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of
 
 	return lattice_of_sensors.gather_time_series_from_all_sensors(), number_of_errors_inserted
 
-def add_rare_event(file_name, lattice_of_sensors, random_generator, max_dist):
+def add_rare_event(file_name, lattice_of_sensors, random_generator, max_dist, loudness, min_hearable_volume):
 	"This function adds a rare event to a time series in the sensors"
-	#max_dist = 2
-	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
 	rare_event_song = ft.get_data_from_file(file_name)
-	loudness = 0.9 #volume of reading at which the principal sensor is going to listen the rare song
 	start_index, end_index = error_generator.generate_rare_event_for_random_period_of_time(lattice_of_sensors, max_dist, min_hearable_volume, 
 	loudness, rare_event_song[0], random_generator)
 
@@ -93,48 +90,42 @@ def save_data_to_file(list_of_data, list_of_file_names):
 
 def main():
 	
-	dimension_of_lattice = 10 #dimension of the lattice of sensors. A square grid
+	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
 	random_generator = random.Random()
 	number_of_time_points = 0
 	warmup_time = 1500 #warmup for 1500 data points
 	error_threshold = 0.02
-	run_id = ""
+	run_id = 30
+	file_of_time_series = "the_series_normalized.csv" #default file
+	loudness = 0.3 #volume of reading at which the principal sensor is going to listen the rare song
+	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
 
 	if len(sys.argv) >= 2:
 		run_id = str(sys.argv[1])
+		file_of_time_series = str(sys.argv[2])
 
 	#assigns the values to the sensor based on the location of the sensors in the lattice
-	list_of_time_series = ft.get_data_from_file("the_series_normalized_1.csv")
+	list_of_time_series = ft.get_data_from_file(file_of_time_series)
 	lattice_of_sensors = lattice.Lattice(dimension_of_lattice)
 	lattice_of_sensors.set_time_series_according_to_sensor_weight(list_of_time_series)
 	number_of_time_points = len(list_of_time_series[0])
 
-	#probability_of_erroneous_reading = ((float(run_id) - 1)/2.0) * 0.1 #uses the run id to set the probability for errors
+	probability_of_erroneous_reading = ((float(run_id) - 1)/2.0) * 0.001 #uses the run id to set the probability for errors
 	#print probability_of_erroneous_reading
-	max_dist = int(run_id)/10
-	print "max dist", max_dist
+	#max_dist = int(run_id)/10
 	#time_series_before_rare_event = lattice_of_sensors.gather_time_series_from_all_sensors()
-	#time_series_with_errors, number_of_errors_inserted = add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of_erroneous_reading)
-	time_series_after_rare_event, start_index, end_index = add_rare_event("rare_song_normalized_1.csv", lattice_of_sensors, random_generator, max_dist)
+	time_series_with_errors, number_of_errors_inserted = add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of_erroneous_reading)
+	#time_series_after_rare_event, start_index, end_index = add_rare_event("rare_song_normalized.csv", lattice_of_sensors, random_generator, max_dist, loudness, min_hearable_volume)
 
 	rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point = differentiate_errors_from_rare_event(lattice_of_sensors, 
 		number_of_time_points, warmup_time, error_threshold)
 	#number_of_sensors_that_deviate_and_is_rare_event = stats.number_of_sensors_deviating_vs_rare_event(start_index, 
 	#	end_index, list_of_errors_detected_in_each_time_point)
-
-	save_data_to_file([list_of_errors_detected_in_each_time_point, [[start_index, end_index]]],
-		["list_of_errors_detected_in_each_time_point_"+run_id+".csv", "rare_from_to_"+run_id+".csv"])
-	"""save_data_to_file([rmse_data, [[number_of_errors_inserted, number_of_errors_detected]]],
-		["rmse_data"+run_id+".csv", "number_of_errors_inserted_vs_errors_detected_"+run_id+".csv" ]
-		)
-
-	time_series_after_rare_event,
-		 number_of_sensors_that_deviate_and_is_rare_event, time_series_with_errors
-	rmse_data, [[number_of_errors_inserted, number_of_errors_detected]] ], 
-		["rmse_data"+run_id+".csv", "number_of_errors_inserted_vs_errors_detected_"+run_id+".csv" ]
-		, 
-		"sensors_after_rare_event.csv", "number_of_sensors_that_deviate_and_is_rare_event.csv",
-		"sensors_after_inserting_errors.csv""sensors_after_inserting_errors.csv""sensors_before_rare_event.csv"
-	"""
-
-main()
+	#save_data_to_file([time_series_after_rare_event], ["time_series_after_rare_event.csv"])
+	#save_data_to_file([time_series_with_errors], ["time_series_with_errors.csv"])
+	#save_data_to_file([[[number_of_errors_inserted, number_of_errors_detected]]], ["errors_inserted_vs_errors_detected_"+str(run_id)+".csv"])
+	#save_data_to_file([rmse_data], ["rmse_data_changed_nw.csv"])
+	#save_data_to_file([list_of_errors_detected_in_each_time_point, [[start_index, end_index]]],
+		#["list_of_errors_detected_in_each_time_point_"+run_id+".csv", "rare_from_to_"+run_id+".csv"])
+if __name__ == "__main__":
+	main()

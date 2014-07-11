@@ -17,10 +17,10 @@ def plot_scatter_plot_of_errors(file_name):
 
 	x, y = get_list_of_data_as_x_and_y(data)
 
-	plt.ylabel("# of anomalies")
-	plt.xlabel("# of induced errors")
+	plt.ylabel("number of detected errors")
+	plt.xlabel("number of induced errors")
 	plt.title("Correlation among induced errors and detected errors")
-	plt.scatter(x, y)
+	plt.scatter(x, y, marker=",")
 	plt.show()
 
 def get_list_of_data_as_x_and_y(data):
@@ -73,9 +73,12 @@ def plot_error_if_greater_than_zero(file_name):
 
 	show_scatter_plot_of_data(x, y, "Anomalies vs no anomalies", "Time", "Is rare event?")
 
-def plot_time_series_file(file_name):
+def plot_time_series_file(file_name, title = "", ylabel = "", xlabel = ""):
 	data = ft.get_data_from_file(file_name)
 	transposed_data = map(list, zip(*data))
+	plt.ylabel(ylabel)
+	plt.xlabel(xlabel)
+	plt.title(title)
 	plt.plot(transposed_data)
 	plt.show()
 
@@ -84,33 +87,54 @@ def plot_file_in_columns(file_name):
 	plt.plot(data)
 	plt.show()
 
-def main():
-	print "Which plot do you want to show?"
-	print "1 - Scatther plot of errors. \n" + \
+def show_menu():
+	print \
+	"1 - Scatther plot of errors. \n" + \
 	"2 - Scatter plot of sensors that deviate and is rare event.\n" + \
 	"3 - Plot any time series file. \n" + \
 	"4 - Plot file that is in columns\n" + \
-	"5 - Plot if greater than zero"
+	"5 - Plot if greater than zero\n" + \
+	"0 - Exit"
+	print "Which choice do you want to show?:",
 
 	choice = int(input())
-	print "Enter the file name:"
-	file_name = raw_input()
+	if choice == 0:
+		return
+	else:
+		print "Enter the file name:",
+		file_name = raw_input()
 
-	if choice == 1:
-		plot_scatter_plot_of_errors(file_name)
+		if choice == 1:
+			plot_scatter_plot_of_errors(file_name)
 
-	if choice == 2:
-		plot_number_of_sensors_that_deviate_and_is_rare_event(file_name)
+		if choice == 2:
+			plot_number_of_sensors_that_deviate_and_is_rare_event(file_name)
 
-	if choice == 3:
-		plot_time_series_file(file_name)
+		if choice == 3:
+			print "Do you want to add labels? yes/no:",
+			do_ask_for_labels = raw_input()
 
-	if choice == 4:
-		plot_file_in_columns(file_name)
+			if do_ask_for_labels == 'yes':
+				print "Enter title:",
+				title = raw_input()
+				print "Enter y label:",
+				ylabel = raw_input()
+				print "Enter x label:",
+				xlabel = raw_input()
+				plot_time_series_file(file_name, title, ylabel, xlabel)
+			else:
+				plot_time_series_file(file_name)
 
-	if choice == 5:
-		plot_error_if_greater_than_zero(file_name)
+		if choice == 4:
+			plot_file_in_columns(file_name)
 
-main()
+		if choice == 5:
+			plot_error_if_greater_than_zero(file_name)
+
+def main():
+	show_menu()
+
+if __name__ == "__main__":
+	main()
 
 

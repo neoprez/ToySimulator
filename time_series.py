@@ -65,4 +65,5 @@ def main():
 	rare_event_song_normalized = tstools.normalize_to_range(rare_event_song)
 	ft.save_data_to_file([rare_event_song_normalized], "rare_song_normalized_" + run_id + ".csv")
 
-main()
+if __name__ == "__main__":
+	main()
