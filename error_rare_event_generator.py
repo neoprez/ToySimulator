@@ -19,14 +19,18 @@ def add_erroneous_reading_to_time_series(time_series, probability_of_erroneous_r
 	
 	new_series = []
 	count_of_errors = 0
+	list_of_times_when_errors_were_inserted = []
 
 	for i in range(len(time_series)):
 		value = time_series[i]
 		value, count = get_value_with_probabilistics_erroneous_value(value, i)
+		if count == 1:
+			list_of_times_when_errors_were_inserted.append(i)
+
 		count_of_errors += count
 		new_series.append(value)
 
-	return new_series, count_of_errors
+	return new_series, count_of_errors, list_of_times_when_errors_were_inserted
 
 def add_erroneous_continuous_sequence_to_time_series(time_series, probability_of_erroneous_reading, 
 	number_of_continous_erroneous_readings, warmup_time, random_generator):

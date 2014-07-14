@@ -28,11 +28,11 @@ def add_erroneous_reading_to_sensor(sensor, probability_of_erroneous_reading,
 	This function modifies the sensor's original time series.
 	"""
 	time_series = sensor.get_time_series()
-	erroneous_reading, number_of_errors_inserted = error_generator.add_erroneous_reading_to_time_series(time_series, 
+	erroneous_reading, number_of_errors_inserted, list_of_errors_inserted = error_generator.add_erroneous_reading_to_time_series(time_series, 
 		probability_of_erroneous_reading, erroneous_reading_standard_deviation, warmup_time, random_generator)
 	erroneous_reading = tstools.normalize_to_range(erroneous_reading, 1.0) #normalize to be between 0 and 1
 	sensor.set_time_series(erroneous_reading)
-	return erroneous_reading, number_of_errors_inserted
+	return erroneous_reading, number_of_errors_inserted, list_of_errors_inserted
 
 def add_erroneous_drift_towards_a_value_to_sensor(sensor, probability_of_erroneous_reading, 
 	number_of_erroneous_points, random_generator):
@@ -55,11 +55,11 @@ def add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of
 	number_of_erroneous_points = 500
 
 	sensor_to_insert_errors = lattice_of_sensors.get_sensor(0,0);
-	erroneous_readings, number_of_errors_inserted = add_erroneous_reading_to_sensor(sensor_to_insert_errors,
+	erroneous_readings, number_of_errors_inserted, list_of_times_when_errors_were_inserted = add_erroneous_reading_to_sensor(sensor_to_insert_errors,
 	 probability_of_erroneous_reading, 
 	erroneous_reading_standard_deviation, warmup_time, random_generator)
 
-	return lattice_of_sensors.gather_time_series_from_all_sensors(), number_of_errors_inserted
+	return lattice_of_sensors.gather_time_series_from_all_sensors(), number_of_errors_inserted, list_of_times_when_errors_were_inserted
 
 def add_rare_event(file_name, lattice_of_sensors, random_generator, max_dist, loudness, min_hearable_volume):
 	"This function adds a rare event to a time series in the sensors"
@@ -86,6 +86,31 @@ def save_data_to_file(list_of_data, list_of_file_names):
 	"This function save all the data from the list into csv files"
 	for data, name in zip(list_of_data, list_of_file_names):
 		ft.save_data_to_file(data, name)
+
+def check_for_true_positives(list_of_times_when_errors_were_inserted, list_of_errors_detected_in_each_time_point):
+	"""
+	This function checks if the errors detected are true positives. Returns a list
+	containing the time at which any point was detected and a number, 1 for true positive,
+	0 for false positives.
+	"""
+	list_of_true_positives = []
+	list_of_false_positives = []
+
+	for sensors, time in list_of_errors_detected_in_each_time_point:
+		if sensors > 0:
+			"check if it is true positive or false positive"
+			if time in list_of_times_when_errors_were_inserted:
+				list_of_true_positives.append([time, 1])
+			else:
+				list_of_false_positives.append([time, 1])
+		else:
+			if time in list_of_times_when_errors_were_inserted:
+				list_of_false_positives.append([time, 1])
+			else:
+				list_of_true_positives.append([time, 1])
+
+	return list_of_true_positives, list_of_false_positives
+
 
 
 def main():
@@ -114,13 +139,18 @@ def main():
 	#print probability_of_erroneous_reading
 	#max_dist = int(run_id)/10
 	#time_series_before_rare_event = lattice_of_sensors.gather_time_series_from_all_sensors()
-	time_series_with_errors, number_of_errors_inserted = add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of_erroneous_reading)
+	time_series_with_errors, number_of_errors_inserted, list_of_times_when_errors_were_inserted = add_errors(lattice_of_sensors, random_generator, warmup_time, probability_of_erroneous_reading)
 	#time_series_after_rare_event, start_index, end_index = add_rare_event("rare_song_normalized.csv", lattice_of_sensors, random_generator, max_dist, loudness, min_hearable_volume)
 
 	rmse_data, number_of_errors_detected, list_of_errors_detected_in_each_time_point = differentiate_errors_from_rare_event(lattice_of_sensors, 
 		number_of_time_points, warmup_time, error_threshold)
+
+	print "Number of errors inserted:", number_of_errors_inserted
+	list_of_true_positives, list_of_false_positives = check_for_true_positives(list_of_times_when_errors_were_inserted, list_of_errors_detected_in_each_time_point)
 	#number_of_sensors_that_deviate_and_is_rare_event = stats.number_of_sensors_deviating_vs_rare_event(start_index, 
 	#	end_index, list_of_errors_detected_in_each_time_point)
+	save_data_to_file([list_of_true_positives, list_of_false_positives, [list_of_times_when_errors_were_inserted]], 
+		["list_of_true_positives.csv", "list_of_false_positives.csv", "list_of_times_when_errors_were_inserted.csv"])
 	#save_data_to_file([time_series_after_rare_event], ["time_series_after_rare_event.csv"])
 	#save_data_to_file([time_series_with_errors], ["time_series_with_errors.csv"])
 	#save_data_to_file([[[number_of_errors_inserted, number_of_errors_detected]]], ["errors_inserted_vs_errors_detected_"+str(run_id)+".csv"])
