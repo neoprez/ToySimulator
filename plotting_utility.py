@@ -34,6 +34,12 @@ def get_list_of_data_as_x_and_y(data):
 
 	return x,y
 
+def set_font_of_plot():
+	font = {"family" : "Century Gothic",
+			"size"   : 22}
+
+	matplotlib.rc("font", **font)
+
 def show_scatter_plot_of_data(x, y, plot_title, x_label, y_label, alpha = 0.5):
 	plt.ylabel(y_label)
 	plt.xlabel(x_label)
@@ -104,6 +110,7 @@ def plot_error_if_greater_than_zero(file_name):
 def plot_time_series_file(file_name, title = "", ylabel = "", xlabel = ""):
 	data = ft.get_data_from_file(file_name)
 	transposed_data = map(list, zip(*data))
+	set_font_of_plot()
 	plt.ylabel(ylabel)
 	plt.xlabel(xlabel)
 	plt.title(title)
