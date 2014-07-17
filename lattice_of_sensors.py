@@ -68,31 +68,60 @@ def add_erroneous_drift_towards_a_value_to_sensor(sensor,
 	sensor.set_time_series(erroneous_reading)
 	return erroneous_reading
 
-def add_errors(lattice_of_sensors, random_generator, warmup_time, 
-	probability_of_erroneous_reading):
-	"This function adds an error to a sensor in the lattice of sensors"
-	#probability_of_erroneous_reading = 0.001
+def add_errors(sensor_to_insert_errors, lattice_of_sensors, choice, probability_of_erroneous_reading, 
+	erroneous_reading_standard_deviation, number_of_continous_erroneous_readings, 
+	warmup_time, random_generator, run_id = ""):
 
-	erroneous_readings, number_of_errors_inserted, 
-	list_of_times_when_errors_were_inserted = \
-	add_erroneous_reading_to_sensor(sensor_to_insert_errors,
-	 probability_of_erroneous_reading, 
-	 erroneous_reading_standard_deviation, warmup_time, random_generator)
+	if choice == 1:
+		"Insert spike error"
+		time_series_with_errors, number_of_errors_inserted, list_of_times_when_errors_were_inserted = insert_type_of_error_to_sensor(
+		sensor_to_insert_errors,1, 
+		probability_of_erroneous_reading,erroneous_reading_standard_deviation, 
+		number_of_continous_erroneous_readings, warmup_time, random_generator)
 
-	return lattice_of_sensors.gather_time_series_from_all_sensors(), 
-	number_of_errors_inserted, list_of_times_when_errors_were_inserted
+		"save data to file"
+		all_series_with_errors = lattice_of_sensors.gather_time_series_from_all_sensors()
+		save_data_to_file([all_series_with_errors], ["time_series_with_spike_errors_"+str(run_id)+".csv"])
 
-def add_rare_event(file_name, lattice_of_sensors, random_generator, 
-	max_dist, loudness, min_hearable_volume):
+	elif choice == 2:
+		"Insert Continous error"
+		time_series_with_errors = insert_type_of_error_to_sensor(sensor_to_insert_errors,
+		2, probability_of_erroneous_reading,
+		erroneous_reading_standard_deviation, number_of_continous_erroneous_readings,
+		warmup_time, random_generator)
+
+		"save data to file"
+		all_series_with_errors = lattice_of_sensors.gather_time_series_from_all_sensors()
+		save_data_to_file([all_series_with_errors], ["time_series_with_continous_errors_"+str(run_id)+".csv"])
+
+	else:
+		number_of_sensors_to_insert_error =  int(prompt_for_input("How many sensors do you want to insert error?"))
+		"Insert Multiple type of errors"
+		for _ in range(number_of_sensors_to_insert_error):
+			error_type = int(prompt_for_input("Enter error type:"))
+			r, c = ask_sensor_to_insert_error()
+			sensor_to_insert_errors = lattice_of_sensors.get_sensor(int(r), int(c))
+
+			insert_type_of_error_to_sensor(sensor_to_insert_errors, error_type, probability_of_erroneous_reading,
+			erroneous_reading_standard_deviation, number_of_continous_erroneous_readings,
+			warmup_time, random_generator)
+
+		"save data to file"
+		all_series_with_errors = lattice_of_sensors.gather_time_series_from_all_sensors()
+		save_data_to_file([all_series_with_errors], ["time_series_with_multiple_errors_"+str(run_id)+".csv"])
+
+def add_rare_event(lattice_of_sensors, rare_event_song, random_generator, 
+	max_dist, loudness, min_hearable_volume, run_id =""):
 	"This function adds a rare event to a time series in the sensors"
-	rare_event_song = ft.get_data_from_file(file_name)
 	start_index, end_index = \
 	error_generator.generate_rare_event_for_random_period_of_time(
 		lattice_of_sensors, max_dist, min_hearable_volume, 
-	loudness, rare_event_song[0], random_generator)
+	loudness, rare_event_song, random_generator)
 
-	return lattice_of_sensors.gather_time_series_from_all_sensors(), 
-	start_index, end_index
+	sensors_after_rare_event = lattice_of_sensors.gather_time_series_from_all_sensors()
+	save_data_to_file([sensors_after_rare_event], ["sensors_after_rare_event_"+str(run_id)+".csv"])
+
+	return sensors_after_rare_event, start_index, end_index
 
 def differentiate_errors_from_rare_event(lattice_of_sensors, 
 	number_of_time_points, warmup_time, error_threshold):
@@ -178,95 +207,84 @@ def insert_type_of_error_to_sensor(sensor_to_insert_errors, error_type,
 			number_of_continous_erroneous_readings, warmup_time, 
 			random_generator)
 
-
-
-def show_menu():
-	dimension_of_lattice = 4 #dimension of the lattice of sensors. A square grid
-	random_generator = random.Random()
-	number_of_time_points = 0
-	warmup_time = 1500 #warmup for 1500 data points
-	error_threshold = 0.02
-	run_id = ""
-	probability_of_erroneous_reading = 0.001
-
-	loudness = 0.3 #volume of reading at which the principal sensor is going to listen the rare song
-	min_hearable_volume = 0.1 #volume at which the farthest sensor will listen to the rare son
-	erroneous_reading_standard_deviation = 0.20
-	number_of_erroneous_points = 500
-	number_of_continous_erroneous_readings = 500
-
-	"File of time series is usually a normalized time series. the_series_normalized.csv"
-	name_of_file_of_time_series = prompt_for_input("Enter name of file of time series:")
-	list_of_time_series = ft.get_data_from_file(name_of_file_of_time_series)
-	number_of_time_points = len(list_of_time_series[0]) #use the len of first time series since there are many in the file
-
-	"Set lattice of sensors"
+def initialize_lattice(list_of_time_series):
 	dimension_of_lattice = int(prompt_for_input("Enter dimension of lattice:"))
 	lattice_of_sensors = lattice.Lattice(dimension_of_lattice) #create the lattice of sensors
 	lattice_of_sensors.set_time_series_according_to_sensor_weight(list_of_time_series) #assigns deterministic functions to sensors
+	return lattice_of_sensors
+
+def get_list_of_time_series():
+	name_of_file_of_time_series = prompt_for_input("Enter name of file of time series:")
+	return ft.get_data_from_file(name_of_file_of_time_series)
+
+def show_error_menu(lattice_of_sensors, random_generator, probability_of_erroneous_reading = 0.001, 
+			erroneous_reading_standard_deviation = 0.20, number_of_continous_erroneous_readings = 500,
+			warmup_time = 1500):
+	"This function shows an error menu"
+
+	print "You are adding errors!"
+	print "What type of errors do you want to insert:"
+	choice = int(prompt_for_input("1 - Spike in reading \n2 - Continous reading \n3 - Multiple type \n?: "))
+	should_use_default_parameters = True if prompt_for_input("Do you want to use default parameters? yes/no:") == "yes" else False
+
+	"To change default parameters"
+	if not should_use_default_parameters:
+		probability_of_erroneous_reading = float(prompt_for_input("Enter probability of erroneous reading:"))
+		number_of_continous_erroneous_readings = int(prompt_for_input("Enter number of continous erroneous points"))
+		warmup_time = int(prompt_for_input("Enter warm up time:"))
+		erroneous_reading_standard_deviation = float(prompt_for_input("Enter erroneous reading standard deviation:"))
+
+	"Add errors"
+	r, c = ask_sensor_to_insert_error()
+	sensor_to_insert_errors = lattice_of_sensors.get_sensor(int(r), int(c))
+
+	add_errors(sensor_to_insert_errors, lattice_of_sensors, choice, probability_of_erroneous_reading, 
+		erroneous_reading_standard_deviation, number_of_continous_erroneous_readings, warmup_time, random_generator)
+
+def show_rare_event_menu(lattice_of_sensors, random_generator, min_hearable_volume = 0.1,
+	error_threshold = 0.02, loudness = 0.3, max_dist = 1):
+	"This functions shows a rare event menu. file name usually: rare_song_normalized.csv"
+	print "You are adding a rare event!!"
+	file_name = prompt_for_input("Enter rare song file name:")
+	rare_event_song = ft.get_data_from_file(file_name)
+
+	should_use_default_parameters = True if prompt_for_input("Do you want to use default parameters? yes/no:") == "yes" else False
+
+	if not should_use_default_parameters:
+		error_threshold = float(prompt_for_input("Enter error threshold:"))
+		loudness = float(prompt_for_input("Enter loudness:"))
+		min_hearable_volume = float(prompt_for_input("Enter min_hearable_volume:"))
+		max_dist = int(prompt_for_input("Enter max distance:"))
+
+	add_rare_event(lattice_of_sensors, rare_event_song[0], random_generator, max_dist, 
+		loudness, min_hearable_volume)
+
+def create_error_free_data(lattice_of_sensors, run_id =""):
+	all_error_free_series = lattice_of_sensors.gather_time_series_from_all_sensors()
+	save_data_to_file([all_error_free_series], ["all_error_free_series"+str(run_id)+".csv"])
+	print "You have created an error-free time series!"
+
+def show_main_menu(random_generator):
+
+	"File of time series is usually a normalized time series. the_series_normalized.csv"
+	list_of_time_series = get_list_of_time_series()
+
+	"initialize lattice of sensors"
+	lattice_of_sensors = initialize_lattice(list_of_time_series)
 
 	"Should add errors?"
 	do_add_errors = True if prompt_for_input("Do you want to add errors? yes/no:") == "yes" else False
+	"Should add rare events?"
+	do_add_rare_event = True if prompt_for_input("Do you want to add a rare event? yes/no:") == "yes" else False
 
 	if do_add_errors:
-		print "You are adding errors!"
-		print "What type of errors do you want to insert:"
-		choice = int(prompt_for_input("1 - Spike in reading \n2 - Continous reading \n3 - Multiple type \n?: "))
-		should_use_default_parameters = True if prompt_for_input("Do you want to use default parameters? yes/no:") == "yes" else False
+		show_error_menu(lattice_of_sensors, random_generator)
 
-		"To change default parameters"
-		error_threshold = float(prompt_for_input("Enter error threshold:")) if not should_use_default_parameters else error_threshold
-		probability_of_erroneous_reading = float(prompt_for_input("Enter probability of erroneous reading:")) if not should_use_default_parameters \
-		else probability_of_erroneous_reading
-		number_of_continous_erroneous_readings = int(prompt_for_input("Enter number of continous erroneous points")) \
-		if not should_use_default_parameters else number_of_continous_erroneous_readings
+	if do_add_rare_event:
+		show_rare_event_menu(lattice_of_sensors, random_generator)
 
-		if choice == 1:
-			"Insert spike error"
-			r, c = ask_sensor_to_insert_error()
-			sensor_to_insert_errors = lattice_of_sensors.get_sensor(int(r), int(c))
-
-			time_series_with_errors, number_of_errors_inserted, list_of_times_when_errors_were_inserted = insert_type_of_error_to_sensor(
-			sensor_to_insert_errors,1, 
-			probability_of_erroneous_reading,erroneous_reading_standard_deviation, 
-			number_of_continous_erroneous_readings, warmup_time, random_generator)
-
-			"save data to file"
-			all_series_with_errors = lattice_of_sensors.gather_time_series_from_all_sensors()
-			save_data_to_file([all_series_with_errors], ["time_series_with_spike_errors_"+str(run_id)+".csv"])
-
-		elif choice == 2:
-			"Insert Continous error"
-			r, c = ask_sensor_to_insert_error()
-			sensor_to_insert_errors = lattice_of_sensors.get_sensor(int(r), int(c))
-
-			time_series_with_errors = insert_type_of_error_to_sensor(sensor_to_insert_errors,
-			2, probability_of_erroneous_reading,
-			erroneous_reading_standard_deviation, number_of_continous_erroneous_readings,
-			warmup_time, random_generator)
-
-			"save data to file"
-			all_series_with_errors = lattice_of_sensors.gather_time_series_from_all_sensors()
-			save_data_to_file([all_series_with_errors], ["time_series_with_continous_errors_"+str(run_id)+".csv"])
-		else:
-			number_of_sensors_to_insert_error =  int(prompt_for_input("How many sensors do you want to insert error?"))
-			"Insert Multiple type of errors"
-			for _ in range(number_of_sensors_to_insert_error):
-				error_type = int(prompt_for_input("Enter error type:"))
-				r, c = ask_sensor_to_insert_error()
-				sensor_to_insert_errors = lattice_of_sensors.get_sensor(int(r), int(c))
-
-				insert_type_of_error_to_sensor(sensor_to_insert_errors, error_type, probability_of_erroneous_reading,
-				erroneous_reading_standard_deviation, number_of_continous_erroneous_readings,
-				warmup_time, random_generator)
-
-			"save data to file"
-			all_series_with_errors = lattice_of_sensors.gather_time_series_from_all_sensors()
-			save_data_to_file([all_series_with_errors], ["time_series_with_multiple_errors_"+str(run_id)+".csv"])
-	else:
-		print "You are creating an error-free time series!"
-		all_error_free_series = lattice_of_sensors.gather_time_series_from_all_sensors()
-		save_data_to_file([all_error_free_series], ["all_error_free_series"+str(run_id)+".csv"])
+	if not do_add_errors and not do_add_rare_event:
+		create_error_free_data(lattice_of_sensors)
 
 def main():
 
@@ -274,7 +292,13 @@ def main():
 		run_id = str(sys.argv[1])
 		file_of_time_series = str(sys.argv[2])
 
-	show_menu()
+	print "Do you want to use interactive mode? yes/no:",
+	should_use_interactive_mode = True if raw_input() == "yes" else False
+
+	random_generator = random.Random()
+
+	if should_use_interactive_mode:
+		show_main_menu(random_generator)
 
 if __name__ == "__main__":
 	main()
